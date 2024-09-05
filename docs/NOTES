@@ -1,0 +1,7 @@
+Downloading the notes for the lexical analisys:
+wget -nd -r -P ./img -A jpeg,jpg,bmp,gif,png https://swtch.com/~rsc/regexp/regexp1.html
+
+
+
+
+
