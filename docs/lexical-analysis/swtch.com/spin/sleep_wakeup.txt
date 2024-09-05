@@ -1,0 +1,138 @@
+#define N	3		/* number of processes */
+
+chan cq = [N] of { byte };	/* a single console queue */
+
+init {
+	atomic {
+		run sleeper();
+		run wakeupr();
+		run posterp()
+	}
+}
+
+byte p_r;		/* p->r, one for each process          */
+byte State;		/* nonzero if sleeper is waiting       */
+byte p_notepending;
+
+byte R_lock;		/* lock point, one for each console q  */
+byte R_p;		/* r->p, nonzero if anyone is waiting  */
+
+#define Wakeme	1	/* scheduling state of sleeper, 0 or 1 */
+#define Console	1	/* id of the console, there is just 1  */
+#define lock(r)		atomic { (R_lock == 0) -> R_lock = 1 }
+#define unlock(r)	R_lock = 0
+
+mtype = { mesg };
+
+proctype sleeper()
+{
+	/* sleep sequence
+	 * suppose we wait to receive
+	 * a mesg from the console cq
+	 */
+
+again:
+	p_r = Console;			/* we're waiting */
+	lock(r);
+	if				/* if condition happened, never mind */
+	:: len(cq) > 0 ->		/* it happened */
+		p_r = 0;		/* not waiting anymore */
+		unlock(r);
+		goto done		/* never mind */
+	:: len(cq) == 0			/* now committed to call scheduler */
+	fi;
+	if
+	:: R_p ->			/* a process already waits for R */
+		printf("double sleep %d\n", R_p);
+		assert(0)
+	:: !R_p ->			/* all clear */
+		State = Wakeme;
+		R_p = 1;		/* register  */
+		unlock(r)
+	fi;
+	if
+	:: p_notepending == 0 ->
+		(State == 0)			/* sched() */
+	:: !p_notepending
+	fi;
+	if
+	:: p_notepending != 0 ->
+		p_notepending = 0;
+		lock(r);
+		if
+		:: R_p == 1 -> R_p = 0
+		:: R_p != 1
+		fi;
+		unlock(r)
+		/* error(Eintr) */
+	fi;
+done:
+	if
+	:: len(cq) ->cq?mesg
+	:: len(cq) == 0
+	fi;
+	goto again
+}
+
+proctype posterp()
+{	byte r;
+
+	/* postnote
+	 * interrupt the waiting process
+	 */
+again:
+	p_notepending = 1;
+	r = p_r;
+	if
+	:: r ->	/* process i is waiting */
+		/* wake up; without calling wakeup itself */
+		lock(r);
+		if
+		:: p_r == 1 ->
+			if
+			:: R_p == 1 ->	/* check we wont race */
+				if
+				:: State == Wakeme ->
+					R_p = 0;
+					p_r = 0;
+					State = 0		/* ready(p) */
+				:: State != Wakeme		/* no asleep */
+				fi
+			:: R_p != 1		/* else, skip */
+			fi
+		:: p_r != 1			/* else, skip */
+		fi;
+		unlock(r)
+	:: !r
+	fi;
+	goto again
+}
+
+proctype wakeupr()
+{	byte p;
+
+	/* wakeup sequence
+	 * send mesg to cq
+	 */
+again:
+	cq!mesg;
+	lock(r);
+	p = R_p;
+	if
+	:: p ->
+		R_p = 0;
+		if
+		:: State != Wakeme ->
+			printf("panic wakeup state\n");
+			assert(0)
+		:: State == Wakeme ->
+			p_r = 0;
+			State = 0		/* ready(p) */
+		fi
+	:: !p
+	fi;
+	unlock(r);
+	goto again
+}
+
+

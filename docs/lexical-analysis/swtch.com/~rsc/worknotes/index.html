@@ -1,0 +1,109 @@
+<html>
+  <head>
+    <title>Notes on Programming Projects</title>
+  </head>
+  <body>
+    <font size=+1>Notes on Programming Projects</font><br/>
+    <font size=-1>Russ Cox,</font> <tt>rsc@swtch.com</tt>
+    <p/>
+    
+    <b>Introduction</b>
+    <p/>
+    These are notes for people working on programming
+    projects with me.
+    They outline what I expect as far as the mechanics of the
+    actual programming is concerned.
+    For more in-depth philosophy on many of these points,
+    you are strongly encouraged
+    to read Kernighan and Pike's
+    <i>The Practice of Programming</i>.
+    <p/>
+    
+    <b>Style</b>
+    <p/>
+    Programmers will always argue about stylistic minutia:
+    naming, white space, brace placement, return value conventions,
+    and so on.
+    Which conventions are correct?
+    Writing a program from scratch, there are many right answers.
+    When you work on code someone else wrote and maintains,
+    there is only one right answer:
+    <i>do what the rest of the code does</i>.
+    There is little that annoys me more than opening up
+    a source file and seeing a section of code that looks
+    nothing like the rest of the file.
+    <p>
+    If you are working with Plan 9 code, note the following conventions:
+    <ul>
+      <li>no white space before opening braces</li>
+      <li>no braces around single-line blocks (e.g., in <tt>if</tt>, <tt>for</tt>, <tt>while</tt>)
+      <li>integer-valued functions return &ndash;1 on error</li>
+      <li>variable and function names all lowercase, no underscores</li>
+      <li><tt>enum</tt> or <tt>#defined</tt> constants 
+        <tt>Uppercase</tt> or <tt>UPPERCASE</tt></li>
+      <li><tt>struct</tt> names <tt>Uppercase</tt>, with matching <tt>typedefs</tt></li>
+      <li>automatic variables (local variables inside a function)
+        are not initialized at declaration</li>
+    </ul>
+    When in doubt about these or other conventions, look at
+    what the existing code does and imitate it.
+    <p>
+    Language is idiomatic.  If you use the same idioms as everyone
+    else, your code will look natural.  If you don't, your code will stand
+    out like an American tourist in a foreign country.
+    If you are writing something common, say it the same way
+    everyone else does.  
+    For example, use <tt>a &lt; 0</tt> instead of <tt>0 &gt; a</tt>
+    and name your loop variables <tt>i</tt>, <tt>j</tt>, <tt>k</tt>,
+    not <tt>lv1</tt>, <tt>lv2</tt>, <tt>lv3</tt>.
+    
+    <p/>
+    <b>Comments</b>
+    <p/>
+    If your code is readable, you shouldn't need many comments.
+    A line or two comment above a function explaining what it 
+    does is always welcome.
+    <p/>
+    Whenever you find yourself wondering why some section of the
+    code is the way it is, add a comment, even one that says
+    <pre>
+      /*
+       * BUG explain this.  I don't understand why the third parameter is 0 here
+       * rather than -1.  I would expect -1 because ...
+       */</pre>
+    Put comments on lines by themselves, before the code they explain.
+    <p/>
+    Don't use commenting as an excuse for writing confusing code.
+    Rewrite the code to make it clear.
+    
+    <p/>
+    <b>Efficiency</b>
+    <p/>
+    Do the simple thing.  Don't optimize unless the code is measurably slow.
+    Even then, fix the data structures rather than look for little 5% tweaks.
+
+    <p/>
+    <b>CVS</b>
+    <p/>
+    We'll probably use CVS, more as a lame distributed file system
+    than as a source code control system.
+    Check-in messages should be a brief summary of what is changing,
+    not an essay.  If the code needs comments, put them in the source
+    files (but see above).
+    
+    <p/>
+    <b>Critique</b>
+    <p/>
+    I may suggest lots of changes to your code, many small, some large.
+    Don't lose heart.
+    That usually means that the code is already good and
+    I want to make it even better: you can't polish a turd.
+
+    <p/>
+    <b>Communication</b>
+    <p/>
+    Don't be a stranger.  Keep me up-to-date on your status via
+    email and stop by and chat once in a while.
+
+  </body>
+</html>

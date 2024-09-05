@@ -1,0 +1,1525 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<title>Acid Trips</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="font-size-adjustment" content="-1" />
+<link rel="stylesheet" href="Slidy/w3c-blue2.css"
+  type="text/css" media="screen, projection, print" />
+<script src="Slidy/slidy.js" type="text/javascript">
+</script>
+</head>
+<body>
+<!-- this defines the slide background -->
+
+<div class="background">
+
+  <div class="header">
+  <!-- sized and colored via CSS -->
+  </div>
+  <!-- hidden style graphics to ensure they are saved with other content -->
+  <img class="hidden" src="Slidy/bullet.png" alt="" />
+  <img class="hidden" src="Slidy/fold.bmp" alt="" />
+  <img class="hidden" src="Slidy/unfold.bmp" alt="" />
+  <img class="hidden" src="Slidy/fold-dim.bmp" alt="" />
+  <img class="hidden" src="Slidy/nofold-dim.bmp" alt="" />
+
+  <img class="hidden" src="Slidy/unfold-dim.bmp" alt="" />
+  <img class="hidden" src="Slidy/bullet-fold.gif" alt="" />
+  <img class="hidden" src="Slidy/bullet-unfold.gif" alt="" />
+  <img class="hidden" src="Slidy/bullet-fold-dim.gif" alt="" />
+  <img class="hidden" src="Slidy/bullet-nofold-dim.gif" alt="" />
+  <img class="hidden" src="Slidy/bullet-unfold-dim.gif" alt="" />
+
+  <div class="footer"></div>
+</div>
+
+<div class="slide cover">
+<div class="header">
+<h1>Acid Trips</h1>
+<p>Russ Cox
+</p>
+<p><tt>http://swtch.com/~rsc/talks/</tt></p>
+<h2>Second International Plan 9 Workshop<br><br>December 2007</h2>
+</div>
+</div>
+
+<div class="slide">
+    <h1>Introduction</h1>
+    
+    <p class="subhead">
+        Acid is the standard Plan 9 debugger.
+    </p>
+    <ul>
+        <li>
+            Ignore db(1).
+        </li>
+        <li>
+            built around a debugging language, not a laundry list of commands.
+            
+        </li>
+    </ul>
+    <p class="subhead">
+        Acid is also the name of the debugging language.
+    </p>
+    <ul>
+        <li>
+            foreign data model
+        </li>
+        <li>
+            strange syntax
+        </li>
+        <li>
+            still, very powerful
+            
+        </li>
+    </ul>
+    <p class="subhead">
+        This talk:
+    </p>
+    <ul>
+        <li>
+            introduction to acid 
+        </li>
+        <li>
+            some in-depth examples and war stories.
+            
+            
+        </li>
+    </ul>
+</div>
+<div class="slide">
+    <h1>Data</h1>
+    
+    <p class="subhead">
+        Acid variables can be integer, float, list, or string.
+    </p>
+    <ul>
+        <li>
+            <code>x = {1, 0.5, {1,2,3}, "hello"}</code>
+            
+        </li>
+    </ul>
+    <p class="subhead">
+        Usual operators: 
+    </p>
+    <ul>
+        <li>
+            integer <code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, <code>%</code>, <code><<</code>, <code>>></code>, <code><</code>, <code><=</code>, <code>></code>, <code>>=</code>, <code>==</code>, <code>!=</code>, <code>&</code>, <code>^</code>, <code>|</code>, <code>~</code>
+        </li>
+        <li>
+            float <code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, <code>%</code>, <code><</code>, <code><=</code>, <code>></code>, <code>>=</code>, <code>==</code>, <code>!=</code>
+        </li>
+        <li>
+            list <code>+</code>, <code>append</code>, <code>hd</code>, <code>tl</code>
+        </li>
+        <li>
+            string <code>+</code>
+        </li>
+        <li>
+            assignment <code>=</code>
+        </li>
+        <li>
+            conditional <code>&&</code>, <code>||</code>, <code>!</code>
+            
+            
+        </li>
+    </ul>
+</div>
+<div class="slide">
+    <h1>Data: dereferencing</h1>
+    
+    <p class="subhead">
+        Dereferencing operators (<code>x</code> is integer):
+    </p>
+    <ul>
+        <li>
+            <code>*x</code> is the value at address <code>x</code> in the current data segment
+        </li>
+        <li>
+            <code>@x</code> is the value at address <code>x</code> in the current text image
+        </li>
+        <li>
+            registers are mapped at a known location in the data segment
+            
+        </li>
+    </ul>
+    <p class="subhead">
+        Formats specify what kind of value is at that address.
+    </p>
+    <ul>
+        <li>
+            <code>*fmt(x, 'b')</code> is the <b>byte</b> at <code>x</code>
+        </li>
+        <li>
+            <code>*fmt(x, 's')</code> is the <b>NUL-terminated string</b> at <code>x</code>
+        </li>
+        <li>
+            <code>*fmt(x, 'i')</code> is the <b>machine instruction</b> at <code>x</code>
+        </li>
+        <li>
+            <code>x\c</code> is shorthand for <code>fmt(x, 'c')</code>; <code>*(x\c)</code> not <code>*x\c == (*x)\c</code>.
+            
+            
+        </li>
+    </ul>
+</div>
+<div class="slide">
+    <h1>Formats</h1>
+    
+    <p class="subhead">
+        Formats also specify how to print the value:
+    </p>
+    <ul>
+        <li>
+            8-bit integer: <code>c</code> (char), <code>C</code> (char or decimal), <code>b</code> (unsigned hex)
+        </li>
+        <li>
+            16-bit integer: <code>r</code> (Rune), <code>x</code> (hex), <code>d</code> (decimal), <code>u</code> (unsigned), <code>o</code> (octal), <code>q</code> (signed octal)
+        </li>
+        <li>
+            32-bit integer: <code>B</code> (binary), <code>X</code> (hex), <code>D</code> (decimal), <code>U</code> (unsigned), <code>O</code> (octal), <code>Q</code> (signed octal)
+        </li>
+        <li>
+            64-bit integer: <code>V</code> (decimal), <code>Y</code> (unsigned hex), <code>Z</code> (unsigned)
+        </li>
+        <li>
+            address-sized integer (pointer): <code>a</code> or <code>A</code> (symbol), <code>W</code> (hex)
+        </li>
+        <li>
+            string: <code>s</code> (NUL-terminated chars), <code>R</code> (NUL-terminated Runes)
+        </li>
+        <li>
+            machine instruction: <code>i</code> (Plan 9 syntax), <code>I</code> (alternate syntax)
+        </li>
+        <li>
+            floating point: <code>f</code>, <code>g</code> (32-bit), <code>F</code>, <code>G</code> (64-bit), <code>3</code>, <code>8</code> (80-bit)
+            
+            
+        </li>
+    </ul>
+</div>
+<div class="slide">
+    <h1>Example</h1>
+    
+    <pre class="p1">
+    // /sys/src/9/port/portdat.h: extern int nsyscall;
+    
+    glenda# acid -k $pid /n/9fat/9pctest
+    /n/9fat/9pctest:386 plan 9 boot image
+    
+    /sys/lib/acid/port
+    /sys/lib/acid/386
+    acid: nsyscall
+    0xf01ef3cc
+    acid: *nsyscall
+    0x00000034
+    acid: *(nsyscall\D)  // *fmt(nsyscall, 'D')
+    52
+    acid: *nsyscall\D    // fmt(*nsyscall, 'D')
+    52
+    acid: 
+    </pre>
+    
+    
+</div>
+<div class="slide">
+    <h1>Example</h1>
+    
+    <pre class="p1">
+    // /sys/src/9/port/portdat.h: extern char *eve;
+    
+    acid: eve
+    0xf01ef0a4
+    acid: *eve
+    0xf0915d50
+    acid: **eve
+    0x746f6f62
+    acid: *(*eve\s)   // *fmt(*eve, 's')
+    bootes
+    acid: **eve\s     // fmt(**eve, 's')
+    *s<integer>*
+    acid: *(eve\s)    // *fmt(eve, 's')
+    P]??
+    acid: **eve
+    0x746f6f62
+    acid:
+    </pre>
+    
+    
+</div>
+<div class="slide">
+    <h1>Aggregates</h1>
+    
+    <p class="subhead">
+        Formats only go so far; need to specify structures too.
+    </p>
+    <ul>
+        <li>
+            <code>complex A x;</code> declares <code>x</code> to have format <code>complex A</code>
+                (and leaves <code>x</code>'s value unchanged &mdash; not a declaration!)
+        </li>
+        <li>
+            <code>x = (A)x;</code> is equivalent, more like C.
+            
+        </li>
+    </ul>
+    <p class="subhead">
+        Definition of <code>A</code> is acid code too:
+    </p>
+    <pre>
+    aggr Qid
+    {
+        'W' 0 path;
+        'U' 8 vers;
+        'b' 12 type;
+    };
+    </pre>
+    
+</div>
+<div class="slide">
+    <h1>Aggregates, cont.</h1>
+    
+    <p class="subhead">
+        New operator <code>.</code> extracts fields using <code>*</code>.  <code>x->y</code> is like <code>(*x).y</code>.
+    </p>
+    <ul>
+        <li>
+            If C program has <code>Qid qid;</code>, acid <code>qid.path</code> evaluates correctly.
+        </li>
+        <li>
+            If C program has <code>Qid *pqid;</code>, acid <code>pqid->path</code> evaluates correctly 
+                (and <code>pqid.path</code> silently evaluates incorrectly!).
+            
+        </li>
+    </ul>
+    <pre>
+    defn Qid(addr) {
+        complex Qid addr;
+        print("\tpath\t",addr.path,"\n");
+        print("\tvers\t",addr.vers,"\n");
+        print("\ttype\t",addr.type,"\n");
+    }
+    </pre>
+    
+</div>
+<div class="slide">
+    <h1>Example</h1>
+    
+    <pre class="p1">
+    // Qid qid = {1, 2, 3};
+    
+    acid: whatis qid
+    integer variable format a complex Qid
+    acid: qid
+        path    0x00000001
+        vers    2
+        type    0x03
+    
+    acid: qid\X
+    0x00002020
+    acid: Qid(0x2020)
+        path    0x00000001
+        vers    2
+        type    0x03
+    acid:
+    </pre>
+    
+</div>
+<div class="slide">
+    <h1>Example</h1>
+    
+    <pre class="p1">
+    // Qid qid = {1, 2, 3};
+    // Qid *pqid = &qid;
+    
+    acid: whatis pqid
+    integer variable format a complex Qid
+    acid: pqid                // Qid(pqid)
+        path    0x00002020
+        vers    0
+        type    0x70
+    
+    acid: *pqid
+        path    0x00000001    // Qid(*pqid)
+        vers    2
+        type    0x03
+    
+    acid: pqid\X
+    0x00002008
+    acid: *pqid\X
+    0x00002020
+    acid: 
+    </pre>
+    
+    
+    
+</div>
+<div class="slide">
+    <h1>Compiler integration</h1>
+    
+    <p class="subhead">
+        C compilers can emit acid code
+    </p>
+    <ul>
+        <li>
+            <code>8c -a *.c >acidfile</code>
+        </li>
+        <li>
+            <code>acid -l acidfile pid</code>
+        </li>
+        <li>
+            Then <code>acidfile</code> contains <code>aggr</code>s, types of globals and function arguments.
+        </li>
+        <li>
+            Binaries contain symbol address information.
+            
+            
+        </li>
+    </ul>
+</div>
+<div class="slide">
+    <h1>Special addresses</h1>
+    
+    <p class="subhead">
+        <code>fn:var</code> is the address of variable <code>var</code> in innermost <code>fn</code> in stack trace
+    </p>
+    <ul>
+        <li>
+            <code>*fn:var</code> or <code>*(*fn:var\s)</code>
+            
+        </li>
+    </ul>
+    <p class="subhead">
+        Registers mapped at address 0:
+    </p>
+    <pre>
+    acid: PC
+    0x00000038
+    acid: *PC
+    0x00001186
+    acid: Ureg(0)
+     ...
+    </pre>
+    
+</div>
+<div class="slide">
+    <h1>Functions</h1>
+    
+    <p class="subhead">
+        Function definitions introduced by <code>defn</code>, seen earlier.
+        
+    </p>
+    <pre>
+    defn name(arg1, arg2, arg3) {
+      local a, b, c;
+      complex Qid arg1;
+      stmt1;
+      stmt2;
+      stmt3;
+      return expr;
+    }
+    </pre>
+    
+    <p class="subhead">
+        Local variables declared by <code>local</code>; otherwise assumed global.
+        
+        
+    </p>
+</div>
+<div class="slide">
+    <h1>Control flow</h1>
+    
+    <p class="subhead">
+        Conditionals
+    </p>
+    <ul>
+        <li>
+            <code>if</code> expr <code>then</code> stmt <code>else</code> stmt
+        </li>
+        <li>
+            <code>if</code> expr <code>then</code> stmt
+            
+        </li>
+    </ul>
+    <p class="subhead">
+        Loops
+    </p>
+    <ul>
+        <li>
+            <code>while</code> expr <code>do</code> stmt
+        </li>
+        <li>
+            <code>loop</code> 1,n <code>do</code> stmt
+            
+            
+        </li>
+    </ul>
+</div>
+<div class="slide">
+    <h1>Example</h1>
+    
+    <pre class="p1">
+    defn fib(n) {
+        if n <= 1 then
+            return n;
+        return fib(n-2) + fib(n-1);
+    }
+    
+    defn fib(n) {
+        local a, b, t;
+        
+        a = 0;
+        b = 1;
+        loop 1,n do {
+            t = a+b;
+            a = b;
+            b = t;
+        }
+        return b;
+    }
+    </pre>
+    
+    
+</div>
+<div class="slide">
+    <h1>Builtins</h1>
+    
+    <p class="subhead">
+        Many useful built-in functions.  Too many to go through.
+    </p>
+    <ul>
+        <li>
+            I/O: <code>access</code>, <code>file</code>, <code>include</code>, <code>print</code>, <code>printto</code>, <code>rc</code>, <code>readfile</code>
+        </li>
+        <li>
+            Strings: <code>atoi</code>, <code>atof</code>, <code>itoa</code>, <code>regexp</code>
+        </li>
+        <li>
+            Lists: <code>match</code>
+        </li>
+        <li>
+            Interpreter: <code>error</code>, <code>interpret</code>
+        </li>
+        <li>
+            Code analysis: <code>filepc</code>, <code>fnbound</code>, <code>follow</code>, <code>pcfile</code>, <code>pcline</code>
+        </li>
+        <li>
+            Process control: <code>kill</code>, <code>map</code>, <code>newproc</code>, <code>setproc</code>, <code>start</code>, <code>startstop</code>, <code>status</code>, <code>stop</code>, <code>strace</code>, <code>waitstop</code>
+            
+            
+        </li>
+    </ul>
+</div>
+<div class="slide">
+    <h1>Library functions</h1>
+    
+    <p class="subhead">
+        Most of the user-facing functions.
+    </p>
+    <ul>
+        <li>
+            <code>Bsrc</code>, <code>src</code>, <code>asm</code>, 
+        </li>
+        <li>
+            <code>regs</code>, <code>stk</code>, <code>lstk</code>, <code>mem</code>, <code>dump</code>
+        </li>
+        <li>
+            <code>bpset</code>, <code>cont</code>, <code>step</code>, <code>new</code>
+            
+        </li>
+    </ul>
+    <p class="subhead">
+        Because they are acid code, easy to redefine.
+    </p>
+    <ul>
+        <li>
+            <code>stopped</code> is called every time acid stops a process
+        </li>
+    </ul>
+    <pre>
+    defn stopped(pid) {
+      pstop(pid);
+      Bsrc(*PC);   // follow along in sam
+    }
+    </pre>
+    
+    <p class="subhead">
+        Read <code>/sys/lib/acid/port</code>; use <code>whatis</code>
+        
+    </p>
+</div>
+<div class="slide">
+    <h1>Examples</h1>
+    
+    <pre class="p1">
+    defn Bsrc(addr)
+    {
+        local file;
+    
+        file = pcfile(addr);
+        if file[0] == '/' && access(file) then {
+            rc("B "+file+":"+itoa(pcline(addr)));
+            return {};
+        }
+        print("no source for ", file, "\n");
+    }
+    </pre>
+    
+</div>
+<div class="slide">
+    <h1>Examples</h1>
+    
+    <pre class="p1">
+    defn bpset(addr)                // set a breakpoint
+    {
+        if status(pid) != "Stopped" then {
+            print("Waiting...\n");
+            stop(pid);
+        }
+        if match(addr, bplist) >= 0 then
+            print("breakpoint already set at ",
+                fmt(addr, 'a'), "\n");
+        else {
+            *fmt(addr, bpfmt) = bpinst;
+            bplist = append bplist, addr;
+        }
+    }
+    </pre>
+    
+</div>
+<div class="slide">
+    <h1>Examples</h1>
+    
+    <pre class="p1">
+    defn src(addr)
+    {
+        local cline, fname, lines, text;
+        
+        fname = pcfile(addr);
+        lines = file(fname);
+        cline = pcline(addr)-1;
+    
+        print(fname, ":", cline+1, "\n");
+        line = cline-5;
+        loop 0,10 do {
+            if line >= 0 && (text = lines[line]) != {} then {
+                if line == cline then
+                    print(">");
+                else
+                    print(" ");
+                print(line+1, "\t", text, "\n");
+            }
+            line = line+1;
+        }
+    }   
+    </pre>
+    
+    
+</div>
+<div class="slide">
+    <h1>Pause</h1>
+    
+    <div class="incremental">
+    <p class="subhead">
+        Okay, that was a lot of work, some of it unnecessary
+    </p>
+    <ul>
+        <li>
+            Would be nice if debugging info was in binary.
+        </li>
+        <li>
+            Would be nice if <code>qid.path</code> vs <code>qid->path</code> got fixed.
+        </li>
+        <li>
+            If <code>char *x;</code>, would be nice to have better syntax than <code>*(*x\s)</code>
+                to print string.
+        </li>
+        <li>
+            Would be nice if <code>a->b.c->d</code> just worked.
+        </li>
+        <li>
+            Would be nice never to type <code>x = (A)x</code> or <code>x = (x\d)</code> again.
+        </li>
+        <li>
+            Would be nice if syntax looked more like C.
+            
+        </li>
+    </ul>
+    <p class="subhead">
+        Real win is ability to program the debugger
+    </p>
+    <ul>
+        <li>
+            gdb is scriptable, but like DOS batch files
+        </li>
+        <li>
+            acid lets you write actual programs in debugger space
+        </li>
+    </ul>
+    </div>
+    
+    
+</div>
+<div class="slide">
+    <h1>Kernel library</h1>
+    
+    <div class="incremental">
+    <p class="subhead">
+        <code>/sys/lib/acid/kernel</code>
+    </p>
+    <pre>
+    glenda# acid -k -l kernel $pid /n/9fat/9pctest
+    /n/9fat/9pctest:386 plan 9 boot image
+    
+    /sys/lib/acid/port
+    /sys/lib/acid/kernel
+    /sys/lib/acid/386
+    acid: kinit()
+        rc("cd /sys/src/9/pc; mk proc.acid")
+        include("/sys/src/9/pc/proc.acid")
+    acid: rc("cd /sys/src/9/pc; mk proc.acid")
+    8c -FVw -a -I. ../port/proc.c >proc.acid
+    acid: include("/sys/src/9/pc/proc.acid")
+    acid:
+    </pre>
+    </div>
+    
+</div>
+<div class="slide">
+    <h1>Kernel library: channel formatting</h1>
+    
+    <pre class="p1">
+    defn chan(c) {
+        local d, q;
+    
+        c = (Chan)c;
+        d=(Dev)(*(devtab+4*c.type));
+        q=c.qid;
+        print("chan(", c\X, "): ref=", c.ref\D,
+            " #", d.dc\r, c.dev\D, 
+            " (", q.path, " ", q.vers\D, " ", q.type\X, ")",
+            " fid=", c.fid\D, " iounit=", c.iounit\D);
+        if c.ref != 0 then {
+            print(" ", cname(c.name), " mchan=", c.mchan\X);
+            if c.mchan != 0 then {
+                print(" ", cname(c.mchan.name));
+            }
+        }
+        print("\n");
+    }
+    </pre>
+    
+</div>
+<div class="slide">
+    <h1>Kernel library: chans</h1>
+    
+    <div class="incremental">
+    <pre class="p1">
+    defn chans() {
+        local c;
+    
+        c = (Chan)chanalloc.list;
+        while c != 0 do {
+            if c.ref != 0 then
+                chan(c);
+            c=(Chan)c.link;
+        }
+    }
+    </pre>
+    <pre class="p1">
+    acid: chans()
+    chan(0xf3def230): 1 452 /sys/src/cmd/rio/8.out #|/data
+    chan(0xf3e18cf0): 8 450 /mnt/term/dev/cons #D/ssl/0/data
+    chan(0xf3df8eb0): 2 448 /mnt/term/dev/cpunote #D/ssl/1/data
+    ...
+    </pre>
+    </div>
+    
+    
+</div>
+<div class="slide">
+    <h1>Kernel library: newchans</h1>
+    
+    <div class="incremental">
+    <p class="subhead">
+        Goal: acid function to check for newly created chans.
+    </p>
+    <pre>
+    acid: newchans()
+    // draw a new window, run rot13fs
+    acid: newchans()
+    chan(0xf3e47610): 1 675 /bin/rot13fs #|/data
+    chan(0xf3e73db0): 1 643 /proc/169256/notepg
+    chan(0xf3df5950): 1 565 /rc/lib/rcmain #|/data
+    acid: 
+    </pre>
+    </div>
+    
+</div>
+<div class="slide">
+    <h1>Kernel library: activechanlist</h1>
+    
+    <p class="subhead">
+        First step: <code>activechanlist</code> makes a list of all the active chans.
+    </p>
+    <pre>
+    defn activechanlist() {
+        local l, n;
+        
+        l = {};
+        c = (Chan)chanalloc.list;
+        while c != 0 do {
+            if c.ref != 0 then
+                l = append l,c;
+            c = (Chan)c.link;
+        }
+        return l;
+    }
+    </pre>
+    
+</div>
+<div class="slide">
+    <h1>Kernel library: difflist </h1>
+    
+    <p class="subhead">
+        Second step: <code>difflist(a, b)</code> returns all entries in <code>a</code> not in <code>b</code>.
+        
+    </p>
+    <pre>
+    defn difflist(a, b) {
+        local l, x;
+        
+        l = {};
+        while a != {} do {
+            x = head a;
+            a = tail a;
+            if match(x, b) == -1 then
+                l = append l, x;
+        }
+        return l;
+    }
+    </pre>
+    
+    
+</div>
+<div class="slide">
+    <h1>Kernel library: newerchans</h1>
+    
+    <p class="subhead">
+        Third step: <code>newerchans(oldlist)</code> prints the chans not on <code>oldlist</code>:
+        
+    </p>
+    <pre>
+    defn newerchans(oldlist){
+        local new;
+        
+        new = difflist(activechanlist(), oldlist);
+        while new != {} do {
+            chan(head new);
+            new = tail new;
+        }
+    }
+    </pre>
+    
+</div>
+<div class="slide">
+    <h1>Kernel library: newchans</h1>
+    
+    <p class="subhead">
+        Final step: <code>newchans</code> maintains a global holding the last chan list.
+        
+    </p>
+    <pre>
+    _active_chan_list = {};
+    defn newchans() {
+        local l, new;
+        
+        l = activechanlist();
+        if _active_chan_list != {} then
+            newerchans(_active_chan_list);
+        _active_chan_list = l;
+    }
+    </pre>
+    
+    
+</div>
+<div class="slide">
+    <h1>Kernel library: data structure loops</h1>
+    
+    <p class="subhead">
+        Look for reference count loops: <code>c.path.mtpt[x] == c</code>
+    </p>
+    <pre class="p1">
+    defn badchans() {
+        local bad, c, i, len, mtpt, p;
+        
+        c = (Chan)chanalloc.list;
+        while c != 0 do {
+            if c.ref != 0 then {
+                p = (Path)c.path;
+                if p != 0 then {
+                    path(p);
+                    i=0; loop 1,p.mlen do {
+                        if p.mtpt[i] == c then
+                            print("chan(", c\X, "): mtpt self-ref\n");
+                        i = i+1;
+                    }
+                }
+            }
+            c = (Chan)c.link;
+        }
+    }
+    </pre>
+    
+    
+</div>
+<div class="slide">
+    <h1>Kernel library: more fun</h1>
+    
+    <p class="subhead">
+        Channel manipulation
+    </p>
+    <p class="subhead">
+        Process manipulation
+    </p>
+    <ul>
+        <li>
+            <code>procs()</code> prints process table, like <code>chans()</code>
+        </li>
+        <li>
+            <code>procstk(p)</code> prints stack for process <code>p</code>
+        </li>
+        <li>
+            <code>procenv(p)</code> prints environment for process <code>p</code>
+        </li>
+        <li>
+            <code>procsegs(p)</code> prints segments in process <code>p</code>
+        </li>
+        <li>
+            <code>procaddr(p, a)</code> translates process <code>p</code>'s virtual address <code>a</code> to a physical address
+            
+        </li>
+    </ul>
+    <p class="subhead">
+        This is why only host owner can poke at kernel memory.
+    </p>
+      
+    
+</div>
+<div class="slide">
+    <h1>Thread library</h1>
+    
+    <p class="subhead">
+        Support for <code>libthread</code> is entirely in an acid library.
+        
+    </p>
+    <pre class="p1">
+    cpu% acid -l thread 169272 
+    /proc/169272/text:386 plan 9 executable
+    
+    /sys/lib/acid/port
+    /sys/lib/acid/thread
+    /sys/lib/acid/386
+    acid: threads()
+    p=(Proc)0x5b1e0    pid 169265  Sched
+        t=(Thread)0x5bb80    Rendez     acme.c:231 threadmain [threadmain]
+        t=(Thread)0x8e9d8    Rendez     acme.c:412 keyboardthread [keyboardthread]
+        t=(Thread)0x8ea78    Rendez     acme.c:566 mousethread [mousethread]
+        t=(Thread)0x8eb18    Rendez     acme.c:709 waitthread [waitthread]
+        t=(Thread)0x8ebb8    Rendez     acme.c:748 xfidallocthread [xfidallocthread]
+        t=(Thread)0x7b718    Rendez     acme.c:764 newwindowthread [newwindowthread]
+    
+    p=(Proc)0x63a70    pid 169266  Sched
+        t=(Thread)0x61670    Rendez     time.c:80 timerproc [timerproc]
+    
+    p=(Proc)0x66850    pid 169267  Running
+        t=(Thread)0x67408    Running    mouse.c:62 _ioproc [mouseproc]
+    
+    p=(Proc)0x685e8    pid 169268  Running
+        t=(Thread)0x68f88    Running    keyboard.c:49 $_ioproc [kbdproc]
+    
+    p=(Proc)0x6a0c8    pid 169269  Running
+        t=(Thread)0x6aa68    Running    mesg.c:413 plumbrecv [plumbproc]
+    
+    p=(Proc)0x6eb88    pid 169270  Running
+        t=(Thread)0x6f5f8    Running    fsys.c:151 fsysproc
+    
+    p=(Proc)0x7ad78    pid 169272  Running
+        t=(Thread)0x76078    Running    acme.c:307 acmeerrorproc [acmeerrorproc]
+    acid: 
+    </pre>
+    
+    
+</div>
+<div class="slide">
+    <h1>Background: stack traces</h1>
+    
+    <p class="subhead">
+        Acid builtin <code>strace(pc, sp, link)</code> returns list representing stack; <code>stk</code> formats it nicely.
+    </p>
+    <pre>
+    cpu% acid 169453
+    /proc/169453/text:386 plan 9 executable
+    
+    /sys/lib/acid/port
+    /sys/lib/acid/386
+    acid: print(strace(*PC, *SP, 0))
+    {{0x000011ce, 0x00001025, {}, {}}, 
+     {0x00001020, 0x00001043, {}, {}}}
+    acid: 
+    acid: stk()
+    abort()+0x0 /sys/src/libc/9sys/abort.c:6
+    main()+0x5 /usr/rsc/cmd/abort.c:7
+    _main+0x1d /sys/src/libc/386/main9.s:11
+    acid: 
+    acid: {0x11ce\a, 0x1025\a, 0x1020\a, 0x1043\a}
+    {abort, main+0x5, main, _main+0x1d}
+    acid:
+    </pre>
+    
+</div>
+<div class="slide">
+    <h1>Background: stack traces</h1>
+    
+    <p class="subhead">
+        <code>Strace</code> returns list of <code>{fn-entry, caller-pc, {args}, {locals}}</code>
+    </p>
+    <pre>
+    acid: print(strace(*PC, *SP, 0))
+    {{0x000059c0, 0x00003bec, 
+      {{"res", 0xdfffe76c}, {"n", 0x001b5548}},
+      {{"l", 0xdfffe708}, {"r", 0x00000000}}},
+    {0x00003b0d, 0x0000ca61,
+      {{"n", 0x001b5548}},
+      {{"r", 0x00000000}, {"res", 0x000541d8}, {"xx", 0x0004da04},
+       {"sl", 0x00000000}, {"l", 0x00000000}, {"s", 0x001b5548},
+       {"e", 0x00120e68}, {"i", 0x000030de}}},
+    ...
+    acid: stk()
+    oadd(res=0xdfffe76c,n=0x1b5548)+0x36 /sys/src/cmd/acid/expr.c:338
+    execute(n=0x1b5548)+0xdf /sys/src/cmd/acid/exec.c:86
+    yyparse()+0x2a4 /sys/src/cmd/acid/dbg.y:63
+    main(argv=0xdfffefb4,argc=0x0)+0x24a /sys/src/cmd/acid/main.c:149
+    acid:
+    </pre>
+    
+</div>
+<div class="slide">
+    <h1>Background: stack traces</h1>
+    
+    <p class="subhead">
+        <code>Stk</code> calls library <code>_stk</code>:
+    </p>
+    <pre>
+    acid: whatis stk
+    defn stk() {
+        _stk(*PC,*SP,0,0);
+    }
+    acid:
+    </pre>
+    
+</div>
+<div class="slide">
+    <h1>Thread library: stack traces</h1>
+    
+    <pre class="p1">
+    defn labpc(l) {
+        if objtype == "386" then
+            return longjmp;
+        return *(l+4);
+    }
+    defn labsp(l) {
+        return *l;
+    }
+    defn labstk(l) {
+        _stk(labpc(l), labsp(l), 0, 0);
+    }
+    
+    defn threadstk(T){
+        complex Thread T;
+        ...
+        if T.state == Running then
+            stk();
+        else
+            labstk(T.sched);
+    }
+    </pre>
+    
+</div>
+<div class="slide">
+    <h1>Truss: trace system calls</h1>
+    
+    <div class="incremental">
+    <p class="subhead">
+        Goal: breakpoint every system call and print arguments and result.
+        
+    </p>
+    <pre>
+    cpu% acid -l truss /bin/ls
+    /bin/ls:386 plan 9 executable
+    /sys/lib/acid/port
+    /sys/lib/acid/truss
+    /sys/lib/acid/386
+    acid: new()
+    acid: truss()
+    open("#c/pid", 0)
+        return value: 3
+    pread(3, 0xdfffeed0, 20, 4294967295)
+        return value: 12
+        data: "     169565 "
+    close(3)
+        return value: 0
+    brk_(0x00011a18)
+        return value: 0
+    stat(".", 0x00010a5c, 115)
+        return value: 65
+    open(".", 0)
+        return value: 3
+    brk_(0x00021ac0)
+        return value: 0
+    pread(3, 0x00010a20, 65595, 4294967295)
+        return value: 260
+        data: 0x00010a20, 260
+    pread(3, 0x00010b24, 65595, 4294967295)
+        return value: 0
+        data: ""
+    brk_(0x00022ae8)
+        return value: 0
+    close(3)
+        return value: 0
+    pwrite(1, "bin
+    include
+    lib
+    mkfile
+    ", 23, 4294967295)
+    bin
+    include
+    lib
+    mkfile
+        return value: 23
+    open("#c/pid", 0)
+        return value: 3
+    pread(3, 0xdfffef0c, 20, 4294967295)
+        return value: 12
+        data: "     169565 "
+    close(3)
+        return value: 0
+    169565: breakpoint  _exits+0x5  INTB    $0x40
+    acid:
+    </pre>
+    </div>
+    
+</div>
+<div class="slide">
+    <h1>Truss: breakpoint every system call</h1>
+    
+    <pre class="p1">
+    defn setuptruss() {
+        local lst, name, addr;
+    
+        lst = trusscalls;
+        trussbpt = {}
+        while lst do {
+            name = head lst;
+            lst = tail lst;
+            addr = addressof(name);
+            if addr then {
+                bpset(addr+offset);
+                trussbpt = append trussbpt, addr;
+                // more hair to save addr of specific calls
+                // readPC, fd2pathPC, ...
+            }
+        }
+    }
+    </pre>
+    
+</div>
+<div class="slide">
+    <h1>Truss: clean breakpoints</h1>
+    
+    <pre class="p1">
+    defn cleantruss() {
+        local lst, addr;
+        
+        lst = trussbpt;
+        while lst do {
+            addr = head lst;
+            lst = tail lst;
+            bpdel(addr);
+        }
+        trussbpt = {};
+        **PC = @*PC;    // repair current instruction
+    }
+    </pre>
+    
+    
+</div>
+<div class="slide">
+    <h1>Truss: main loop</h1>
+    
+    <pre class="p1">
+    defn truss() {
+        setuptruss();
+        while !_stoprunning do {
+            cont();
+            if notes[0]!="sys: breakpoint" then {
+                cleantruss();
+                return {};
+            }
+            pc = *PC;
+            if match(pc, trussbpt) >= 0 then {
+                usyscall();   // print syscall and args
+                trussflush();
+                step();
+                ret = *AX;
+                print("\treturn value: ", ret\D, "\n");
+                if ret >= 0 && match(pc, fd2pathPC) >= 0 then
+                    print("\tdata: \"", *(*(*SP+4)\s), "\"\n");
+                ...
+            }
+        }
+    }
+    </pre>
+    
+</div>
+<div class="slide">
+    <h1>Truss: keep going after breakpoint</h1>
+    
+    <pre class="p1">
+    defn stopped(pid) {
+        if notes && notes[0] != "sys: breakpoint" then {
+            pstop(pid);
+            _stoprunning = 1;
+        }
+    }
+    </pre>
+    
+    
+</div>
+<div class="slide">
+    <h1>Trump: memory tracing</h1>
+    
+    <p class="subhead">
+        Mostly same as <code>truss</code>
+    </p>
+    <ul>
+        <li>
+            print call and then format <code>strace()</code> to show stack
+            
+        </li>
+    </ul>
+    <pre class="p1">
+    cpu% acid -l trump /bin/ls
+    /bin/ls:386 plan 9 executable
+    /sys/lib/acid/port
+    /sys/lib/acid/trump
+    /sys/lib/acid/386
+    acid: new()
+    acid: trump()
+    0x00010a20 malloc 175 # src(dirstat+0x29); src(ls+0xf); src(main+0xb9); src(_main+0x31);
+    0x00010a20 free # src(ls+0xe1); src(main+0xb9); src(_main+0x31);
+    0x00010a20 realloc 0x0001003b 0 # src(dirreadall+0x29); src(ls+0x117); src(main+0xb9); src(_main+0x31);
+    0x00010a20 realloc 0x000106d9 68128 # src(dirreadall+0x29); src(ls+0x117); src(main+0xb9); src(_main+0x31);
+    0x00021af0 malloc 3254 # src(dirpackage+0xa5); src(dirreadall+0x91); src(ls+0x117); src(main+0xb9); src(_main+0x31);
+    0x00010a20 free # src(dirreadall+0xa1); src(ls+0x117); src(main+0xb9); src(_main+0x31);
+    0x00010a20 realloc 0x000000d0 0 # src(growto+0x32); src(ls+0x142); src(main+0xb9); src(_main+0x31);
+    </pre>
+    
+    
+</div>
+<div class="slide">
+    <h1>Acid works on running programs</h1>
+    
+    <pre class="p1">
+    cpu% acid 156574
+    /proc/156574/text:386 plan 9 executable
+    
+    /sys/lib/acid/port
+    /sys/lib/acid/386
+    acid: stk()
+    stat()+0x7 /sys/src/libc/9syscall/stat.s:5
+    dirstat(name=0x17fa98)+0x5a /sys/src/libc/9sys/dirstat.c:23
+    copyfile(mkaux=0xdfffee60,f=0xdfffece4,d=0x197de4,permonly=0x1)+0x45 /sys/src/libdisk/proto.c:233
+    mktree(mkaux=0xdfffee60,me=0xdfffed28,rec=0x1)+0x1a6 /sys/src/libdisk/proto.c:181
+    mktree(mkaux=0xdfffee60,me=0xdfffed6c,rec=0x1)+0x1cc /sys/src/libdisk/proto.c:183
+    mktree(mkaux=0xdfffee60,me=0xdfffedb0,rec=0x1)+0x1cc /sys/src/libdisk/proto.c:183
+    mktree(mkaux=0xdfffee60,me=0x194f48,rec=0x1)+0x1cc /sys/src/libdisk/proto.c:183
+    domkfs(mkaux=0xdfffee60,me=0x194de8,level=0x0)+0x193 /sys/src/libdisk/proto.c:144
+    domkfs(mkaux=0xdfffee60,me=0xdfffee44,level=0xffffffff)+0xea /sys/src/libdisk/proto.c:150
+    rdproto(proto=0xdfffef90,root=0xdfffef7d,mkerr=0x14c1,mkenum=0x11ba,a=0x0)+0x10a /sys/src/libdisk/proto.c:103
+    main(argv=0xdfffef68,argc=0x1)+0xe6 /sys/src/cmd/replica/updatedb.c:186
+    _main+0x31 /sys/src/libc/386/main9.s:16
+    acid: *(*dirstat:name\s)
+    /n/sources/plan9//lib/face/48x48x1/a/adb.1
+    acid: *(*dirstat:name\s)
+    /n/sources/plan9//lib/face/48x48x2/r/rob.1
+    acid: 
+    </pre>
+    
+    
+</div>
+<div class="slide">
+    <h1>Acid and other tools</h1>
+    
+    <p class="subhead">
+        Acid output can be analyzed by other programs
+    </p>
+    <ul>
+        <li>
+            <code>leak</code> postprocesses an acid script that dumps
+                the malloc data structures.
+        </li>
+        <li>
+            <code>/sys/src/cmd/fossil/deadlock</code> postprocesses the
+                output of <code>/sys/src/cmd/fossil/fossil-acid</code>
+                to identify deadlocked threads.
+            
+        </li>
+    </ul>
+</div>
+<div class="slide">
+    <h1>Sam bug: the report</h1>
+    
+    <p class="subhead">
+        Ancient sam bug; inspected using acid.
+    </p>
+    <pre class="p1">
+    From rsc@swtch.com Thu Jan  4 08:11:12 EST 2007
+    To: Rob Pike <robpike@gmail.com>
+    Subject: sam panic
+    
+    Geoff Collyer reported a sam panic "rdata 2" and sent
+    along a snapshot of the sam process.  He said he was
+    executing a looping command at the time, something like
+    (sent at once):
+    
+           ,x/'    /c/     /
+           ,x/     '/c/    /
+    
+    I assume those are tabs even though they look like spaces.
+    </pre>
+    
+</div>
+<div class="slide">
+    <h1>Sam bug: the report (2)</h1>
+    
+    <pre class="p1">
+    The stack trace is:
+    
+    abort()+0x0 /sys/src/libc/9sys/abort.c:6
+    panic(s=0x1a111)+0x82 /sys/src/cmd/sam/sam.c:161
+    rdata(p1=0x3a63,r=0x33210,n=0x1,.ret=0xdfffe50c)+0x2af
+    /sys/src/cmd/sam/rasp.c:300
+    inmesg(type=0x3)+0x394 /sys/src/cmd/sam/mesg.c:266
+    rcv()+0x7a /sys/src/cmd/sam/mesg.c:170
+    outflush()+0x3a /sys/src/cmd/sam/mesg.c:836
+    outsend()+0x84 /sys/src/cmd/sam/mesg.c:824
+    outTsll(type=0x11,s=0x2f,l1=0x24d3,l2=0x2)+0x38 /sys/src/cmd/sam/mesg.c:740
+    raspinsert(p1=0x23d0,n=0x1,f=0x510c8,toterm=0x1,buf=0x95980)+0xa3
+    /sys/src/cmd/sam/rasp.c:148
+    fileundo(f=0x510c8,isundo=0x0,flag=0x1,canredo=0x1,q0p=0xdfffee70,q1p=0xdfffee6c)+0x428
+    /sys/src/cmd/sam/file.c:547
+    fileupdate(f=0x510c8,notrans=0x0,toterm=0x1)+0x9d /sys/src/cmd/sam/file.c:439
+    update()+0x96 /sys/src/cmd/sam/sam.c:308
+    cmdloop()+0x93 /sys/src/cmd/sam/cmd.c:234
+    main(argv=0xdfffef68,argc=0x5)+0x213 /sys/src/cmd/sam/sam.c:103
+    </pre>
+    
+</div>
+<div class="slide">
+    <h1>Sam bug: the report (3)</h1>
+    
+    <pre class="p1">
+    The interesting part about this is that if you look at
+    *inmesg:f, it turns out to be the same file that
+    fileupdates/fileundo are acting on, and rdata appears to be
+    just 1 byte short.  It looks like raspinsert sent a notice
+    about a previous raspdelete with the outTsll and then
+    samterm is asking for some updated file bits near the end.
+    
+    acid: mem(indata, "8b")
+    0x2f 0x00 0x36 0x3a 0x00 0x00 0x3b 0x00
+    acid: 0x3a36+0x3b
+    0x00003a71
+    acid: f=(File)*inmesg:f
+    acid: f.nc\X
+    0x00003a64
+    acid:
+    </pre>
+    
+</div>
+<div class="slide">
+    <h1>Sam bug: the report (4)</h1>
+    
+    <pre class="p1">
+    That would be fine except that the Rasp thinks there are
+    only 0x3a63 bytes in the file:
+    
+    acid: (List)*rdata:r
+            type    80
+            nalloc  125
+            nused   109
+    _2_ g {
+            listp   0x00050e88
+    }
+    
+    acid: *rdata:i\D
+    109
+    acid: p=0x50e88; tot=0; loop 1,109 do { 
+        tot = tot + (*p&0x7fffffff);
+        p = p + 4;
+    }
+    acid: tot
+    0x00003a63
+    acid: f.nc\X
+    0x00003a64
+    acid:
+    
+    Somewhere a byte has been lost in the rasp or gained in the
+    buffer.  This probably has some relevance to the bug I
+    reported over the summer.
+    
+    I am at a loss to explain where the byte went/came from.
+    </pre>
+    
+    
+</div>
+<div class="slide">
+    <h1>Sam bug: aha!</h1>
+    
+    <pre class="p1">
+    rdata(p1=0x3a63,r=0x33210,n=0x1,.ret=0xdfffe50c)+0x2af
+    /sys/src/cmd/sam/rasp.c:300
+    inmesg(type=0x3)+0x394 /sys/src/cmd/sam/mesg.c:266
+    rcv()+0x7a /sys/src/cmd/sam/mesg.c:170
+    
+    outflush()+0x3a /sys/src/cmd/sam/mesg.c:836
+    outsend()+0x84 /sys/src/cmd/sam/mesg.c:824
+    outTsll(type=0x11,s=0x2f,l1=0x24d3,l2=0x2)+0x38 /sys/src/cmd/sam/mesg.c:740
+    raspinsert(p1=0x23d0,n=0x1,f=0x510c8,toterm=0x1,buf=0x95980)+0xa3
+    /sys/src/cmd/sam/rasp.c:148
+    </pre>
+    
+    <ul>
+        <li>
+            <code>raspinsert</code> calls <code>outTsll</code> with buffer in
+                half-updated state.
+        </li>
+        <li>
+            <code>outTsll</code> is out of buffer space and has to flush
+                changes to the terminal.
+        </li>
+        <li>
+            waits for <code>Tack</code> message to avoid overwhelming terminal
+        </li>
+        <li>
+            serves messages while waiting for <code>Tack</code>
+            
+        </li>
+    </ul>
+</div>
+<div class="slide">
+    <h1>Sam bug</h1>
+    
+    <div class="incremental">
+    <p class="subhead">
+        Solution
+    </p>
+    <ul>
+        <li>
+            Make sure the buffer always has room to grow.
+        </li>
+        <li>
+            Only consider flushing buffer at safe points.
+        </li>
+    </ul>
+    <p class="subhead">
+        Fifteen year old bug.
+        
+    </p>
+    <p class="subhead">
+        Lessons
+    </p>
+    <ul>
+        <li>
+            acid is great for looking around
+        </li>
+        <li>
+            no substitute for actual thought!
+        </li>
+    </ul>
+    </div>
+    
+    
+</div>
+<div class="slide">
+    <h1>Stack forward traces</h1>
+    
+    <div class="incremental">
+    <p class="subhead">
+        &ldquo;I wonder if we could walk down the stack...&rdquo;
+        
+    </p>
+    <pre>
+    acid: asm(0x8b82)
+    icachewriteproc 0x00008b82  SUBL    $0x24,SP
+    icachewriteproc+0x3 0x00008b85  MOVL    mainindex(SB),AX
+    acid: *(0x8b84\b)
+    0x24
+    </pre>
+    
+    <p class="subhead">
+        Yes, we can!
+        
+    </p>
+    <pre>
+    acid: sp=0x310295b0
+    acid: loop 1,10 do {
+        pc = *sp;
+        calledpc = *(pc-4)+pc;
+        print(sp\X, " ", pc\X, " ", calledpc\a);
+        sp = sp - *(calledpc+2\b) - 4;
+    }
+    0x310295b0 0x00008c44 icachewritesect
+    0x31029534 0x00008937 writepart
+    0x31029514 0x00004adb rwpart
+    0x310294e0 0x00004a5a prwb
+    0x31029488 0x0000001b 0x1b
+    0x31029484 0x3102948c 0x310294a7
+    </pre>
+    </div>
+    
+    
+</div>
+<div class="slide">
+    <h1>Summary</h1>
+    
+    <p class="subhead">
+        Very quirky language
+    </p>
+    <p class="subhead">
+        But programmable!
+    </p>
+    <ul>
+        <li>
+            makes up for everything else
+            
+        </li>
+    </ul>
+    <br><br><br>
+    <p class="subhead">
+        <code>page /sys/doc/acid.ps</code>
+    </p>
+    <p class="subhead">
+        <code>page /sys/doc/acidpaper.ps</code>
+    </p>
+    <p class="subhead">
+        <code>man -P acid</code>
+    </p>
+    <p class="subhead">
+        <code>http://swtch.com/~rsc/talks/acid07/</code>
+    </p>
+</div>
+</body></html>

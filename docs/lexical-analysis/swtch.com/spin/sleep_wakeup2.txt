@@ -1,0 +1,114 @@
+mtype = { Run, Wakeme };
+
+typedef Proc {
+	mtype state;
+};
+
+typedef Rendezvous {
+	bool l = false;
+	short p;	/* index in procs[] */
+};
+
+Rendezvous r;
+
+#define MAXPROC	4
+Proc procs[MAXPROC];
+
+short thisp;		/* index in procs[] */
+
+bool mask = true;
+bool condition = false;
+
+inline sched() {
+	(procs[thisp].state == Run);	/* wait */
+	assert(condition);
+	condition = false
+}
+
+/* sleep.spn */
+proctype sleep()
+{      
+  
+  
+       int s; ; 	/* line 14 */ 
+      again: c_code { s=inhibit(); }; 	/* line 18 */ 
+      atomic { r.l == false -> r.l = true }; 	/* line 19 */ 
+      if
+      :: condition; 	/* line 19 */ 
+          r.l = false; 	/* line 25 */ 
+          c_code { allow(s); }; 	/* line 26 */ 
+          goto again; 	/* line 27 */ 
+      :: else; 	/* line 27 */ 
+      fi;
+      if
+      :: c_expr { r->p }; 	/* line 27 */ 
+          assert(1+1==2); 	/* line 35 */ 
+
+      :: else; 	/* line 35 */ 
+      fi;
+      c_code { thisp->state=Wakeme; }; 	/* line 36 */ 
+      c_code { r->p = thisp; }; 	/* line 37 */ 
+      r.l = false; 	/* line 38 */ 
+      c_code { allow(s); }; 	/* line 39 */ 
+      sched(); goto again; 	/* line 40 */ 
+
+Return:	skip
+}
+
+/* wakeup.spn */
+proctype wakeup()
+{  
+      short p; 	/* line 54 */ 
+       int s; ; 	/* line 55 */ 
+      p = r.p; 	/* line 57 */ 
+      if
+      :: procs[p].state != 0; 	/* line 57 */ 
+          atomic { s = mask; mask = false }; 	/* line 59 */ 
+          atomic { r.l == false -> r.l = true }; 	/* line 60 */ 
+          r.p = 0; 	/* line 61 */ 
+          if
+          :: procs[p].state != Wakeme; 	/* line 61 */ 
+              assert(2+2==5); 	/* line 63 */ 
+
+          :: else; 	/* line 63 */ 
+          fi;
+          procs[p].state = Run; 	/* line 64 */ 
+          r.l = false; 	/* line 65 */ 
+          if
+          ::  s; 	/* line 65 */ 
+              mask = s; 	/* line 67 */ 
+
+          ::  !s; 	/* line 67 */ 
+          fi;
+
+      :: else; 	/* line 67 */ 
+      fi;
+
+Return:	skip
+}
+
+/* driver */
+init {
+	byte n;
+
+	d_step {
+		n = 1;	/* keep 0 for nilproc, state 0 */
+		do
+		:: n < MAXPROC ->
+			procs[n].state = Run;
+			n++
+		:: else ->
+			break
+		od
+	};
+	run sleep();
+
+end:	do
+	:: atomic { mask && !condition ->
+		condition = true;
+		n = _nr_pr;
+		run wakeup();
+		(n == _nr_pr)
+		}
+	od
+}

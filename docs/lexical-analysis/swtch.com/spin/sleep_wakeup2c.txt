@@ -1,0 +1,118 @@
+typedef int Lock;
+typedef void Proc;
+
+#define V1
+
+typedef struct{
+	Lock	l;
+	Proc	*p;
+} Rendezvous;
+
+void
+sleep(Rendezvous *r, int (*condition)(void*), void *arg)
+{
+	int s;
+#ifdef V3
+again:
+#endif
+	s = inhibit();
+	lock(&r->l);
+
+	/*
+	 * if condition happened, never mind
+	 */
+	if((*condition)(arg)){
+		unlock(&r->l);
+		allow(s);	/* interrupts */
+		return;
+	}
+
+	/*
+	 * now we are committed to
+	 * change state and call scheduler
+	 */
+	if(r->p)
+		error("double sleep %d %d", r->p->pid, thisp->pid);
+	thisp->state = Wakeme;
+	r->p = thisp;
+	unlock(&r->l);
+	allow(s);	/* interrupts */
+	sched();	/* relinquish CPU */
+
+#ifdef V3
+	if(!(*condition)(arg)){
+		goto again;
+	}
+#endif
+}
+
+#ifdef V1
+/* V1: incorrect implementation of wakeup, bug found by hand */
+void
+wakeup(Rendezvous *r)
+{
+	Proc *p;
+	int s;
+
+	p = r->p;
+	if(p){
+		s = inhibit();
+		lock(&r->l);
+		r->p = 0;
+		if(p->state != Wakeme)
+			panic("wakeup: not Wakeme");
+		ready(p);
+		unlock(&r->l);
+		if(s)
+			allow(s);
+	}
+}
+/*
+bug1:	 found by spin 9/2000 
+	the interrupt mask can be turned off permanently
+	when sleep starts off with the mask off and saves that
+	state in s -- just before wakeup turns it back on.
+	sleep later restores the mask to 0, incorrectly.
+
+bug2:	 reported in sleep/wakeup paper as manually found 
+	reading  r->p  may occur just as another process calls sleep(),
+	so when the interrupt examines the structure it
+	sees no one to wake up, and the sleeping process
+	misses its wakeup.
+	"The bug was in the system for a couple of months
+	without causing an error."
+*/
+#endif
+
+#if defined(V2)||defined(V3)
+/* V2. corrected version, but still faulty - bug found by spin */
+void
+wakeup(Rendezvous *r)
+{
+	Proc *p;
+	int s;
+
+	s = inhibit();	/* interrupts; return old state */
+	lock(&r->l);
+	p = r->p;
+	if(p){
+		r->p = 0;
+		if(p->state != Wakeme)
+			panic("wakeup: not Wakeme");
+		ready(p);
+	}
+	unlock(&r->l);
+	if(s)
+		allow(s);
+}
+/*	A process may return from sleep() with the condition function false
+	if there is a delay between the condition coming true and wakeup()
+	being called, with the delay occurring just as the receiving process
+	calls sleep().
+	The condition is now true, so that process returns immediately,
+	does whatever is appropriate, and then (say) decides to call sleep()
+	again.  This time the condition is false, so it goes to sleep.
+	The wakeup process then finds a sleeping process,
+	and wakes it up, but the condition is now false.
+*/
+#endif

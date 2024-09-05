@@ -1,0 +1,1577 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<title>Threads without Locks</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="font-size-adjustment" content="-1" />
+<link rel="stylesheet" href="Slidy/w3c-blue2.css"
+  type="text/css" media="screen, projection, print" />
+<script src="Slidy/slidy.js" type="text/javascript">
+</script>
+</head>
+<body>
+<!-- this defines the slide background -->
+
+<div class="background">
+
+  <div class="header">
+  <!-- sized and colored via CSS -->
+  </div>
+  <!-- hidden style graphics to ensure they are saved with other content -->
+  <img class="hidden" src="Slidy/bullet.png" alt="" />
+  <img class="hidden" src="Slidy/fold.bmp" alt="" />
+  <img class="hidden" src="Slidy/unfold.bmp" alt="" />
+  <img class="hidden" src="Slidy/fold-dim.bmp" alt="" />
+  <img class="hidden" src="Slidy/nofold-dim.bmp" alt="" />
+
+  <img class="hidden" src="Slidy/unfold-dim.bmp" alt="" />
+  <img class="hidden" src="Slidy/bullet-fold.gif" alt="" />
+  <img class="hidden" src="Slidy/bullet-unfold.gif" alt="" />
+  <img class="hidden" src="Slidy/bullet-fold-dim.gif" alt="" />
+  <img class="hidden" src="Slidy/bullet-nofold-dim.gif" alt="" />
+  <img class="hidden" src="Slidy/bullet-unfold-dim.gif" alt="" />
+
+  <div class="footer"></div>
+</div>
+
+<div class="slide cover">
+<div class="header">
+<h1>Threads without Locks</h1>
+<p>Russ Cox
+</p>
+<p><tt>http://swtch.com/~rsc/talks/</tt></p>
+<h2>Second International Plan 9 Workshop<br><br>December 2007</h2>
+</div>
+</div>
+
+<div class="slide">
+    <h1>Introduction</h1>
+    
+    <p class="subhead">
+        Two popular camps for designing concurrent programs.
+        
+    </p>
+    <ul>
+        <li>
+            Threads with locks
+            <ul>
+                <li>
+                    Birrell, &ldquo;<a href="http://research.microsoft.com/~birrell/papers/ThreadsCSharp.pdf">An introduction to programming with threads</a>&rdquo;
+                </li>
+            </ul>
+        </li>
+        <li>
+            Top-level select loops with events
+            <ul>
+                <li>
+                    Ousterhout, &ldquo;<a href="http://home.pacbell.net/ouster/threads.pdf">Why threads are a bad idea (for most purposes)</a>&rdquo;
+                    
+                </li>
+            </ul>
+        </li>
+    </ul>
+    <div class=incremental>
+    <p class="subhead">
+        Should we use threads or events?
+    </p>
+    <ul>
+        <li class="incremental">
+            Andrew Birrell: threads.
+        </li>
+        <li class="incremental">
+            John Ousterhout: events.
+        </li>
+        <li class="incremental">
+            John DeTreville: no.
+        </li>
+        <li class="incremental">
+            Rob Pike: yes.
+            
+        </li>
+    </ul>
+    <p class="subhead">
+        Bell Labs approach: threads <i>and</i> events.
+    </p>
+    <ul>
+        <li>
+            Squeak, Newsqueak, Alef, Limbo
+        </li>
+    </ul>
+    </div>
+    
+    
+</div>
+<div class="slide">
+    <h1>Threads vs. Events</h1>
+    
+    <div class="incremental">
+    <p class="subhead">
+        Drawbacks of threads (<a href="http://home.pacbell.net/ouster/threads.pdf">Ousterhout</a>):
+        
+    </p>
+    <ul>
+        <li>
+            synchronization, deadlock, hard to debug
+        </li>
+        <li>
+            library layering, callbacks complicated by locks
+        </li>
+        <li>
+            good performance is hard, threads not well supported
+        </li>
+        <li>
+            &ldquo;often don't want concurrency anyway&rdquo;
+            
+        </li>
+    </ul>
+    <p class="subhead">
+        Drawbacks of events (<a href="http://home.pacbell.net/ouster/threads.pdf">Ousterhout</a>):
+    </p>
+    <ul>
+        <li>
+            long-running handlers make apps non-responsive
+        </li>
+        <li>
+            can't maintain local state across events
+        </li>
+        <li>
+            no CPU concurrency
+        </li>
+        <li>
+            event-driven I/O not always well supported
+            
+        </li>
+    </ul>
+    <p class="subhead">
+        Actually drawbacks of <i>locks</i> and <i>top-level select loops</i>!
+    </p>
+    </div>
+    
+    
+</div>
+<div class="slide">
+    <h1>The &ldquo;Plan 9&rdquo; Way: Threads <i>and</i> Events</h1>
+    
+    <div class="incremental">
+    <p class="subhead">
+        Model:
+    </p>
+    <ul>
+        <li>
+            Each thread maintains private, local state.
+        </li>
+        <li>
+            Threads interact by communication (messages, aka events).
+        </li>
+        <li>
+            No mutable global variables.
+        </li>
+        <li>
+            Thread creation, context switch, message sends are <b>very cheap</b>
+        </li>
+        <li>
+            Shared data sits behind protocol-serving threads
+            
+        </li>
+    </ul>
+    <p class="subhead">
+        Benefits:
+    </p>
+    <ul>
+        <li>
+            no locking problems
+        </li>
+        <li>
+            can maintain local state across events
+        </li>
+        <li>
+            can use CPU concurrency
+        </li>
+        <li>
+            long-running handlers don't stop other threads
+        </li>
+        <li>
+            don't need event-driven I/O support
+        </li>
+    </ul>
+    </div>
+    
+    
+</div>
+<div class="slide">
+    <h1>Talk content</h1>
+    
+    <p class="subhead">
+        At the end, I hope you understand:
+    </p>
+    <ul>
+        <li>
+            why &ldquo;threads vs. events&rdquo; is a nonsensical question
+        </li>
+        <li>
+            how to think about programming threads using events
+        </li>
+        <li>
+            how to use threads with events to build simple programs
+        </li>
+        <li>
+            some of the flavor of Newsqueak, Alef, and Limbo programs
+        </li>
+        <li>
+            some of the history behind the Bell Labs approach to concurrency
+            
+        </li>
+    </ul>
+    <p class="subhead">
+        For more information:
+    </p>
+    <ul>
+        <li>
+            lots of links throughout talk (in red)
+        </li>
+        <li>
+            talk is online; click on the links
+        </li>
+        <li>
+            <tt>http://swtch.com/~rsc/talks/threads07/</tt>
+            
+        </li>
+    </ul>
+</div>
+<div class="slide">
+    <h1>Outline</h1>
+    
+    <p class="subhead">
+        <font color=#888888>Introduction and motivation</font>
+    </p>
+    <p class="subhead">
+        Primitives
+    </p>
+    <p class="subhead">
+        Examples 
+    </p>
+    <ul>
+        <li>
+            venti indexer
+        </li>
+        <li>
+            publish/subscribe
+        </li>
+    </ul>
+    <p class="subhead">
+        Comparison with locking, select loops
+    </p>
+    <p class="subhead">
+        History and related topics
+    </p>
+    <p class="subhead">
+        Cooperative (non-preemptive) scheduling
+        
+        
+    </p>
+</div>
+<div class="slide">
+    <h1>Primitives</h1>
+    
+    <div class="incremental">
+    <p class="subhead">
+        Pseudocode in this talk
+    </p>
+    <ul>
+        <li>
+            Essential syntax common to Newsqueak, Alef, Limbo
+        </li>
+        <li>
+            Translation to C and <code>libthread</code> at end.
+            
+        </li>
+    </ul>
+    <p class="subhead">
+        Process creation
+    </p>
+    <ul>
+        <li>
+            <code>proc f(x, y, z)</code>
+            <ul>
+                <li>
+                    Creates new proc (thread) executing <code>f(x, y, z)</code>.
+                    
+                </li>
+            </ul>
+        </li>
+    </ul>
+    <p class="subhead">
+        Channel: the communication abstraction
+    </p>
+    <ul>
+        <li>
+             <code>chan of int</code>
+            <ul>
+                <li>
+                    Unidirectional channel for sending and receiving <code>int</code>s.
+                </li>
+            </ul>
+        </li>
+        <li>
+            <code>c = chan of int</code>
+            <ul>
+                <li>
+                    Allocate unbuffered channel
+                </li>
+            </ul>
+        </li>
+        <li>
+            <code>c = chan[5] of int</code>
+            <ul>
+                <li>
+                    Allocate buffered channel (queue)
+                </li>
+            </ul>
+        </li>
+    </ul>
+    </div>
+    
+    
+</div>
+<div class="slide">
+    <h1>Primitives - send and receive</h1>
+    
+    <div class="incremental">
+    <p class="subhead">
+        Send
+    </p>
+    <ul>
+        <li>
+            <code>c &lt;-= x;</code>
+            <ul>
+                <li>
+                    Send the value <code>x</code> on <code>c</code>.
+                    
+                </li>
+            </ul>
+        </li>
+    </ul>
+    <p class="subhead">
+        Receive
+    </p>
+    <ul>
+        <li>
+            <code>x = &lt;-c;</code>
+            <ul>
+                <li>
+                    Receive a value from <code>c</code> and assign it to <code>x</code>.
+                    
+                </li>
+            </ul>
+        </li>
+    </ul>
+    <p class="subhead">
+        Semantics:
+    </p>
+    <ul>
+        <li>
+            Guaranteed in-order delivery.
+        </li>
+        <li>
+            Receive blocks until there is data to receive.
+        </li>
+        <li>
+            Send on unbuffered channel blocks until receiver comes along.
+        </li>
+        <li>
+            Send on buffered channel blocks until data is placed in buffer.
+        </li>
+        <li>
+            Multiple readers, multiple writers okay.
+        </li>
+    </ul>
+    </div>
+    
+</div>
+<div class="slide">
+    <h1>Primitives - alt</h1>
+    
+    <p class="subhead">
+        Alt (aka select)
+        
+    </p>
+    <pre>
+    alt {
+    x = &lt;-c1:
+        print("received %d from c1\n", x);
+    c2 &lt;-= y:
+        print("sent %d to c2\n", y);
+    }
+    </pre>
+    
+    <ul>
+        <li>
+            Blocks until at least one of the communcations can proceed.
+        </li>
+        <li>
+            Executes one of the possible communications followed by its code block.
+        </li>
+        <li>
+            Advanced form: <code>cond && c &lt;-= y</code> only eligible when <code>cond</code> is true.
+            
+        </li>
+    </ul>
+</div>
+<div class="slide">
+    <h1>Warm-up: concurrent prime sieve (McIlroy)</h1>
+    
+    <p class="subhead">
+        Can generate primes using a pipeline of procs.
+        
+    </p>
+    <pre>
+    p = receive from left neighbor
+    print p
+    loop:
+        x = receive from left neighbor
+        if (p does not divide x)
+            send x to right neighbor
+    </pre>
+    
+    <center><img src=sieve.gif></center>
+    
+    <p class="subhead">
+        Generating process sends 2, 3, 4, 5, 6, ... to leftmost proc.
+        
+        
+    </p>
+</div>
+<div class="slide">
+    <h1>Warm-up: code</h1>
+    
+    <p class="subhead">
+        Implementation in our pseudo-language.
+        
+    </p>
+    <pre>
+    filter(c: chan of int)
+    {
+        p = &lt;-c;
+        print("%d\n", p);
+    
+        c1 = chan of int;
+        proc filter(c1);
+        while(x = &lt;-c)
+            if(x%p)
+                c1 &lt;-= x;
+    }
+      <!-- -->
+    c = chan of int;
+    proc filter(c);
+    for(i=2;; i++)
+        c &lt;-= i;
+    </pre>
+    
+    <p class="subhead">
+        Not representative of systems uses; hopefully mind-expanding.
+        
+        
+    </p>
+</div>
+<div class="slide">
+    <h1>Example: venti indexer</h1>
+    
+    <div class="incremental">
+    <p class="subhead">
+        Background
+    </p>
+    <ul>
+        <li>
+            Venti stores data across many arena disks, index disks.
+        </li>
+        <li>
+            Indexer's job is to read each block on arena disks and 
+                store index entries on the index disks.
+        </li>
+        <li>
+            Assignment of arena block to index disk is (pseudo)random.
+            
+        </li>
+    </ul>
+    <p class="subhead">
+        For performance, want to keep all the disks busy.
+    </p>
+    <ul>
+        <li>
+            Read from all arena disks simultaneously.
+        </li>
+        <li>
+            Write to all index disks simultaneously.
+            
+        </li>
+    </ul>
+    <p class="subhead">
+        With locks?
+    </p>
+    <ul>
+        <li>
+            one reader per arena, using locks to synchronize index writes?
+        </li>
+        <li>
+            ???
+            
+        </li>
+    </ul>
+    </div>
+    
+</div>
+<div class="slide">
+    <h1>Example: venti indexer</h1>
+    
+    <p class="subhead">
+        Channel-based solution:
+    </p>
+    <ul>
+        <li>
+            One thread per arena disk, reading.
+        </li>
+        <li>
+            One thread per index disk, accumulating index writes and writing.
+        </li>
+        <li>
+            One channel per index disk.
+        </li>
+        <li>
+            Arena thread writes each entry to appropriate index disk's channel.
+        </li>
+        <li>
+            Index thread reads its disk's channel.
+            
+        </li>
+    </ul>
+    <div class="incremental">
+    <p class="subhead">
+        Arena reader:
+    </p>
+    <pre>
+    arenadiskproc(d: ArenaDisk)
+    {
+        for(each block b in d){
+            xd = indexdisk(b);
+            xd.c &lt;-= indexentry(b);
+        }
+    }
+    </pre>
+    </div>
+    
+</div>
+<div class="slide">
+    <h1>Example: venti indexer (<a href="http://swtch.com/usr/local/plan9/src/cmd/venti/srv/buildindex.c">source code</a>)</h1>
+    
+    <p class="subhead">
+        Arena reader:
+    </p>
+    <pre>
+    arenadiskproc(d: ArenaDisk)
+    {
+        for(each block b in d){
+            xd = indexdisk(b);
+            xd.c &lt;-= indexentry(b);
+        }
+    }
+    </pre>
+    
+    <div class="incremental">
+    <p class="subhead">
+        Index writer:
+    </p>
+    <pre>
+    indexdiskproc(d: IndexDisk)
+    {
+        nentries = 0;
+        while(ie = &lt;-d.c){
+            entries[nentries++] = ie;
+            if(nentries == nelem(entries)){
+                bufwrite(entries, nentries);
+                nentries = 0;
+            }
+        }
+        bufwrite(entries, nentries);
+    }
+    </pre>
+    </div>
+    
+    
+</div>
+<div class="slide">
+    <h1>Example: publish/subscribe</h1>
+    
+    <div class="incremental">
+    <p class="subhead">
+        Pub/sub server publishes pair of channels, for publish and subscribe.
+        
+    </p>
+    <pre>
+    typedef message = (string, string);  /* (topic, body) */
+    struct Server
+    {
+        csub: chan of (string, chan of message);
+        cpub: chan of message;
+    };
+    </pre>
+    
+    <p class="subhead">
+        Subscriber registers a channel with its topic of interest.
+        
+    </p>
+    <pre>
+    c = chan of message;
+    server.csub &lt;- ("slashdot", c);
+    for(;;){
+        (t, s) = &lt;-c;
+        print("slashdot: %s\n", s);
+    }
+    </pre>
+    
+    <p class="subhead">
+        Publisher sends messages on <code>server.cpub</code>.
+        
+    </p>
+    <pre>
+    server.cpub &lt;- ("slashdot", "l337 hax0r dudes");
+    </pre>
+    
+    </div>
+    
+    
+</div>
+<div class="slide">
+    <h1>Example: pub/sub server</h1>
+    
+    <p class="subhead">
+        Event loop handling just the two server channels.
+        
+    </p>
+    <pre>
+    subscribers = list of (string, chan of message);
+    for(;;)
+        alt {
+        (topic, c) = &lt;-csub:
+            append(subscribers, (topic, c));
+        (topic, body) = &lt;-cpub:
+            for((t, c) in subscribers)
+                if(t == topic)
+                    c &lt;-= (topic, body);
+        }
+    </pre>
+    
+    <div class="incremental">
+    <p class="subhead">
+        Problem: publishing can block if client stops reading.
+    </p>
+    </div>
+    
+    
+</div>
+<div class="slide">
+    <h1>Example: pub/sub server</h1>
+    
+    <p class="subhead">
+        Introduce new per-client thread to take care of queueing messages.
+        
+    </p>
+    <pre>
+    buffer(dst: chan of message): chan of message
+    {
+        c = chan of message;
+        proc bufferproc(c, dst);
+        return c;
+    }
+    
+    bufferproc(src: chan of message, dst: chan of message)
+    {
+        messages = list of string;
+        for(;;)
+            alt {
+            msg &lt;-= src:
+                append(messages, msg);  
+            len(messages) > 0 && dst &lt;-= messages[0]:
+                pop(messages);
+            }
+    }
+    </pre>
+    
+    <div class="incremental">
+    <p class="subhead">
+        Server loop barely changes, because <i>interface</i> is the same.
+        
+    </p>
+    <pre>
+    (topic, c) = &lt;-csub:
+        append(subscribers, (topic, buffer(c)));
+    </pre>
+    </div>
+    
+    
+</div>
+<div class="slide">
+    <h1>Example: pub/sub server proxy</h1>
+    
+    <pre>
+    proxy(remote: Server): Server
+    {
+        new_csub = chan of (string, chan of message);
+        local = Server(new_csub, remote.cpub);
+        proc proxyproc(remote, local);
+        return local;
+    }
+    
+    proxyproc(remote: Server, local: Server)
+    {
+        topics = list of string;
+        subscribers = list of (string, chan of message);
+        from_remote = chan of message;
+    
+        for(;;)
+            alt {
+            (topic, c) = &lt;-local.csub:
+                append(subscribers, (topic, c));
+                if(topic not in topics){
+                    append(topics, topic);
+                    remote.csub &lt;- (topic, from_remote);
+                }
+            (topic, body) = &lt;-from_remote:
+                for((t, c) in subscribers)
+                    if(t == topic)
+                        c &lt;-= (topic, body);
+            }
+    }
+    </pre>
+    
+</div>
+<div class="slide">
+    <h1>Pub/sub lessons</h1>
+    
+    <div class="incremental">
+    
+    <p class="subhead">
+        Communication abstraction makes both sides simple.
+    </p>
+    <ul>
+        <li>
+            Have server loop and client loop.
+        </li>
+        <li>
+            Thread &amp; lock solutions much more complicated.
+            <ul>
+                <li>
+                    Subscription registers a callback?
+                </li>
+                <li>
+                    If one thread publishes, what thread do the callbacks run in?
+                </li>
+                <li>
+                    If subscription has <code>get()</code> method, how does that 
+                            block and synchronize with publishers?
+                    
+                </li>
+            </ul>
+        </li>
+    </ul>
+    <p class="subhead">
+        Channel (or set of channels) is an interface.
+        
+    </p>
+    <ul>
+        <li>
+            Defines exactly how to interact with a given resource.
+        </li>
+        <li>
+            Easy to use filters that preserve that interface.
+            <ul>
+                <li>
+                    buffer, proxy
+                </li>
+            </ul>
+        </li>
+        <li>
+            Rob Pike built a window system as a channel filter
+                  on top of the usual hardware screen interface.
+            
+        </li>
+    </ul>
+    </div>
+    
+</div>
+<div class="slide">
+    <h1>Outline</h1>
+    
+    <p class="subhead">
+        <font color=#888888>Introduction and motivation</font>
+    </p>
+    <p class="subhead">
+        <font color=#888888>Primitives</font>
+    </p>
+    <p class="subhead">
+        <font color=#888888>Examples</font>
+    </p>
+    <ul>
+        <li>
+            <font color=#888888>venti indexer</font>
+        </li>
+        <li>
+            <font color=#888888>publish/subscribe</font>
+        </li>
+    </ul>
+    <p class="subhead">
+        Comparison with locking, select loops
+    </p>
+    <p class="subhead">
+        History and related topics
+    </p>
+    <p class="subhead">
+        Cooperative (non-preemptive) scheduling
+        
+        
+        
+    </p>
+</div>
+<div class="slide">
+    <h1>Comparison with Locks</h1>
+    
+    <div class="incremental">
+    <p class="subhead">
+        Locks <i>protect</i> shared mutable state.
+    </p>
+    <ul>
+        <li>
+            Specifically, they protect <i>invariants</i> about the state.
+        </li>
+        <li>
+            <code>lock(x)</code> says &ldquo;I depend on the invariants protected by <code>x</code>.&rdquo; <br>
+                 or &ldquo;I'm about to break the invariants protected by <code>x</code>.  Look away!&rdquo;
+        </li>
+        <li>
+            <code>unlock(x)</code> says &ldquo;I'm done (and if I broke the invariants, I've fixed them).&rdquo;
+        </li>
+        <li>
+            Invariants always existed, just easier to break with multithreading.
+        </li>
+        <li>
+            Locks unnecessary in single-threaded program.
+            
+        </li>
+    </ul>
+    <p class="subhead">
+        Message-passing moves mutable state into single-threaded loop.
+    </p>
+    <ul>
+        <li>
+            Invariants still exist, like in single-threaded code.
+        </li>
+        <li>
+            But the server thread is itself single-threaded, easier to reason about.
+        </li>
+        <li>
+            Can inspect individual server threads for correctness.
+        </li>
+        <li>
+            No need to worry about other threads &mdash; they can't see into our state.
+        </li>
+    </ul>
+    </div>
+    
+    
+</div>
+<div class="slide">
+    <h1>Comparison with event loops</h1>
+    
+    <div class="incremental">
+    <p class="subhead">
+        Top-level event loops provide one single thread of execution.
+    </p>
+    <ul>
+        <li>
+            Single-threaded, so easy to reason about.
+        </li>
+        <li>
+            Handlers might have their own constrants, simulating logical threads.
+        </li>
+        <li>
+            Handlers can't maintain local state (stack variables).
+        </li>
+        <li>
+            Handlers can't block easily (stack ripping).
+            
+        </li>
+    </ul>
+    <p class="subhead">
+        Threaded message-passing provides many single threads of execution.
+    </p>
+    <ul>
+        <li>
+            (If one event loop is good, many is better!)
+        </li>
+        <li>
+            Each is single-threaded and isolated, so easy to reason about.
+        </li>
+        <li>
+            Protocol for interacting with other threads is specified.
+        </li>
+        <li>
+            Each message loop can maintain local state, can block if needed.
+        </li>
+    </ul>
+    </div>
+    
+    
+</div>
+<div class="slide">
+    <h1>History: Rumblings</h1>
+    
+    <div class="incremental">
+    <p class="subhead">
+        <a href="http://cm.bell-labs.com/cm/cs/who/dmr/mdmpipe.html">Doug McIlroy, 1964</a>
+    </p>
+    <ul>
+        <li>
+            &ldquo;We should have some ways of coupling programs like garden hose--screw in another segment when it becomes necessary to massage data in another way. This is the way of IO also.&rdquo;
+            
+        </li>
+    </ul>
+    <p class="subhead">
+        Doug McIlroy, 1968
+    </p>
+    <ul>
+        <li>
+            &ldquo;Coroutines: semantics in search of a syntax&rdquo;
+        </li>
+        <li>
+            Unpublished Bell Labs memorandum
+        </li>
+        <li>
+            [<a href="http://www.princeton.edu/~hos/mike/transcripts/mcilroy.htm">McIlroy</a>]  &ldquo;It was clearly a beautiful mental model, this idea that the output from one process would just feed in as input to another. There was syntactic difficulty in talking about that mental model, and I have a co-routine paper written in 1968 that was never, never printed, because it was always a little too ugly, struggling with syntax.&rdquo;
+        </li>
+    </ul>
+    </div>
+    
+    
+</div>
+<div class="slide">
+    <h1>History: Pipes</h1>
+    
+    <p class="subhead">
+        <a href="http://www.princeton.edu/~hos/mike/transcripts/thompson.htm">Thompson recalls</a>:
+        
+    </p>
+    <ul>
+        <li>
+            &ldquo;Yeah,well, Doug had was for years and years, well it seemed like years, I don't know the actual span was probably one year, Doug had uh, and he talked to us continually about it, a notion of interconnecting computers in grids, and arrays, you know very complex, you know, and there were always problems in his proposals. That what you would type would be linear and what he wanted was three-dimensional...n-dimensional...I mean he wanted just topological connection of programs and to build programs with loops and and you know horrid things. I mean he had such grandiose ideas and we were just saying, you know, &ldquo;God, it's worthless, the complexity you're generating just can't be fathomed. You don't sit down and you don't type these kind of connections together.&rdquo; &rdquo;
+            
+            
+        </li>
+    </ul>
+</div>
+<div class="slide">
+    <h1>History: Pipes</h1>
+    
+    <p class="subhead">
+        <a href="http://www.princeton.edu/~hos/mike/transcripts/thompson.htm">Thompson continued</a>:
+        
+    </p>
+    <ul>
+        <li>
+            &ldquo;And [Doug] persisted with his the grandiose ideas where you get into Kirchoff's law problems, where you get into you know, what happens if you have a feedback loop and every program doubles the number of characters, you know, it reads one and writes two? You know, what happens to...it's got to go somewhere you know. And you get these synchronization just, I mean there's just no way to implement his ideas and we kept trying to pare him down and weed him down and get him down, you know, and get something useful and distill it. What was going on, what was needed, what was real ideas, what was the fantasy of his ...and we there were constant discussions all through this period, and it hit just one night, it just hit, and they went in instantly, I mean they are utterly trivial.&rdquo;
+            
+            
+        </li>
+    </ul>
+</div>
+<div class="slide">
+    <h1>History: Pipes</h1>
+    
+    <p class="subhead">
+        <a href="http://www.princeton.edu/~hos/mike/transcripts/mcilroy.htm">McIlroy recalls</a>:
+        
+    </p>
+    <ul>
+        <li>
+            &ldquo;Over a period from 1970 til '72, I'd from time to time, say &ldquo;How about making something like this?&rdquo;, and I would put up another proposal, another proposal, another proposal. Then one day I came up with a syntax for the shell that went along with the piping and Ken said, &ldquo;I'm gonna do it.&rdquo; He was tired of hearing all this stuff....
+        </li>
+        <li class="incremental">
+            &ldquo;That was absolutely a fabulous day, the next day....
+        </li>
+        <li class="incremental">
+            &ldquo;[Ken] put pipes into Unix. He put this notation into the shell, all in one night.... Most of the programs up until that time couldn't take standard input, because, there wasn't the real need. They all had file arguments. grep had a file argument, cat had a file argument. Thompson saw that that wasn't going to fit into this scheme of things, and he went in and changed all those programs in the same night. I don't know how. And the next morning we had this orgy of &ldquo;one liners.&rdquo; Everybody had another one liner. Look at this, look at that.&rdquo;
+            
+            
+        </li>
+    </ul>
+</div>
+<div class="slide">
+    <h1>Side note: prime sieve in shell script</h1>
+    
+    <pre>
+    #!/bin/rc
+    
+    filter()
+    {
+        read p || exit
+        while read x; do
+            if [ `expr $x % $p` != 0 ]; then
+                echo $x
+            fi
+        done | filter
+    }
+    
+    seq 2 100 | filter
+    </pre>
+    
+</div>
+<div class="slide">
+    <h1>History: Communicating Sequential Processes (CSP)</h1>
+    
+    <div class="incremental">
+    <p class="subhead">
+        Tony Hoare, 1978
+    </p>
+    <ul>
+        <li>
+            &ldquo;<a href="http://doi.acm.org/10.1145/359576.359585">Communicating 
+                sequential processes,</a>&rdquo; CACM, August 1978
+        </li>
+        <li>
+            Later a book, but the paper is far more concise.
+            
+        </li>
+    </ul>
+    <p class="subhead">
+        Luca Cardelli and Rob Pike, 1985
+    </p>
+    <ul>
+        <li>
+            &ldquo;<a href="http://research.microsoft.com/users/luca/Papers/Squeak.pdf">Squeak: a Language for Communicating with Mice</a>,&rdquo; SIGGRAPH 1985
+            
+        </li>
+    </ul>
+    <p class="subhead">
+        Rob Pike, 1989
+    </p>
+    <ul>
+        <li>
+            &ldquo;<a href="http://swtch.com/~rsc/thread/newsqueak.pdf">Newsqueak: a Language for Communicating with Mice</a>,&rdquo; 
+                Computing Science Technical Report 143, AT&T Bell Laboratories, Murray Hill, 1989.
+        </li>
+        <li>
+            &ldquo;<a href="http://swtch.com/~rsc/thread/cws.pdf">A Concurrent Window System</a>,&rdquo; Computing Systems 2(2) 133-153.
+            
+        </li>
+    </ul>
+    <p class="subhead">
+        Result is like pipes but send typed messages instead of text.
+    </p>
+    <ul>
+        <li>
+            Implementation is more efficient (user space)
+            
+        </li>
+    </ul>
+    </div>
+    
+    
+</div>
+<div class="slide">
+    <h1>History: Later languages</h1>
+    
+    <p class="subhead">
+        Phil Winterbottom, Alef, 1991 or so
+    </p>
+    <p class="subhead">
+        Sean Dorward and Phil Winterbottom, Limbo, 1997 or so
+    </p>
+    <p class="subhead">
+        Rob Pike's 2007 Google tech talk<br>
+            <a href="http://video.google.com/videoplay?docid=810232012617965344">Concurrency and message passing in Newsqueak</a>
+        
+        
+    </p>
+</div>
+<div class="slide">
+    <h1>Related languages: Erlang</h1>
+    
+    <div class="incremental">
+    <p class="subhead">
+        Erlang is all message-passing, completely functional.
+    </p>
+    <ul>
+        <li>
+            Developed at Ericsson telecom starting in late 1980s.
+        </li>
+        <li>
+            No way to create shared mutable data.
+        </li>
+        <li>
+            Used in many telecommunications apps, with one thread per call!
+        </li>
+        <li>
+            Starting to get traction for other network programming.
+            
+        </li>
+    </ul>
+    <p class="subhead">
+        Like in CSP, Erlang does not have first-class channels.
+    </p>
+    <ul>
+        <li>
+            Sends are targeted at proc ids.
+        </li>
+        <li>
+            Receives can restrict acceptable messages with pattern matching.
+            
+        </li>
+    </ul>
+    <p class="subhead">
+        Erlang message sends are asynchronous, unreliable, unordered!
+    </p>
+    <ul>
+        <li>
+            Perhaps a better model for real world networks.
+        </li>
+        <li>
+            Makes it easier to express real world failures.
+        </li>
+    </ul>
+    </div>
+    
+    
+</div>
+<div class="slide">
+    <h1>Related languages: Haskell</h1>
+    
+    <div class="incremental">
+    <p class="subhead">
+        Haskell is a lazy functional programming language.
+    </p>
+    <ul>
+        <li>
+            On the surface, nothing to do with concurrency.
+        </li>
+        <li>
+            Lazy computation ends up creating lots of parallel threads of control.
+            
+        </li>
+    </ul>
+    <p class="subhead">
+        Concurrent prime sieve uses threads to implement lazy streams.
+        
+    </p>
+    <ul>
+        <li>
+            Doug McIlroy, &ldquo;<a href="http://swtch.com/~rsc/thread/squint.pdf">Squinting at Power Series</a>,&rdquo; Software&mdash;Practice and Experience, 20(7) (July 1990), 661-683.
+            
+        </li>
+    </ul>
+    <p class="subhead">
+        If language supports laziness directly, can write even cleaner programs.
+        
+    </p>
+    <ul>
+        <li>
+            Doug McIlroy, &ldquo;<a href="http://www.cs.dartmouth.edu/~doug/pearl.ps.gz">Power series, power serious</a>,&rdquo; Functional Pearl, 1999.
+        </li>
+    </ul>
+      
+    <ul>
+        <li>
+            Doug McIlroy, &ldquo;<a href="http://www.cs.dartmouth.edu/~doug/music.ps.gz">The music of streams</a>,&rdquo; Information Processing Letters 77 (2001) 189-195.
+            
+        </li>
+    </ul>
+    </div>
+    
+    
+</div>
+<div class="slide">
+    <h1>Plan 9 thread library cheat sheet</h1>
+    
+    <pre>
+    #include &lt;thread.h&gt;
+    
+    Channel *c;  
+    c = chancreate(sizeof(int), 0);   /* c = chan of int */
+    c = chancreate(sizeof(int), 5);   /* c = chan[5] of int */
+    
+    recv(c, &amp;x);                      /* x = &lt;-c */
+    x = recvp(c);
+    x = recvul(c);
+    
+    send(c, &amp;x);                      /* c &lt;-= x */
+    sendp(c, x);
+    sendul(c, x);
+    </pre>
+    
+    
+</div>
+<div class="slide">
+    <h1>Plan 9 thread library cheat sheet - alt</h1>
+    
+    <pre>
+    alt {
+    x = &lt;-c1:
+        print("received %d from c1\n", x);
+    cond &amp;&amp; c2 &lt;-= y:
+        print("sent %d to c2\n", y);
+    }
+    </pre>
+    
+    <p class="subhead">
+        C + Libthread:
+    </p>
+    <pre>
+    Alt alts[3];
+    
+    alts[0] = (Alt){c1, &x, CHANRCV};
+    alts[1] = (Alt){c2, &y, cond ? CHANSND : CHANNOP};
+    alts[2] = (Alt){nil, nil, CHANEND};
+    switch(alt(alts)){
+    case 0:
+        print("received %d from c1\n", x);
+        break;
+    case 1:
+        print("sent %d to c2\n", y);
+        break;
+    }
+    </pre>
+    
+    
+</div>
+<div class="slide">
+    <h1>Plan 9 thread library cheat sheet - proc</h1>
+    
+    <pre>
+    proc f(x, y, z);
+    </pre>
+    
+    <p class="subhead">
+        C + Libthread:
+    </p>
+    <pre>
+    struct Args
+    {
+        int x;
+        int y;
+        int z;
+    };
+    
+    a = malloc(sizeof *a);
+    *a = (Args){ x, y, z };
+    proccreate(run_f, a, STACK);
+    
+    void
+    run_f(void *v)
+    {
+        Args a = *(Args*)v;
+        free(v);
+        f(a.x, a.y, a.z);
+    }
+    </pre>
+    
+    
+</div>
+<div class="slide">
+    <h1>Duality</h1>
+    
+    <p class="subhead">
+        <a href="http://www.sics.se/~adam/pt/duality78.pdf">Lauer and Needham, 1979</a>:
+        
+    </p>
+    <p>
+    Many operating system designs can be placed into one of two
+    very rough categories, depending upon how they implement and use
+    the notions of process and synchronization.  One category, the &ldquo;Message-oriented System,&rdquo;
+    is characterized by a relatively small, static number of processes with
+    an explicit message system for communicating among them.
+    The other category, the &ldquo;Procedure-oriented system,&rdquo; is characterized by a large,
+    rapidly changing number of small processes and a process synchronization
+    mechanism based on shared data.
+    </p>
+    
+    <p>
+    In this paper, it is demonstrated that these two categories are duals of
+    each other and that a system which is constructed according to one model 
+    has a direct counterpart in the other.  The principal conclusion is that neither model
+    is inherently preferable, and the main consideration for choosing between them
+    is the nature of the machine architecture upon which the system is being
+    built, not the application which the system will ultimately support.
+    </p>
+    
+    
+</div>
+<div class="slide">
+    <h1>Duality, continued</h1>
+    
+    <div class="incremental">
+    <p class="subhead">
+        Lauer and Needham's terminology
+    </p>
+    <ul>
+        <li class="incremental">
+            Traditional threads and locks == &ldquo;Procedure-oriented system&rdquo;
+        </li>
+        <li class="incremental">
+            Threads with message-passing == &ldquo;Message-oriented system&rdquo;
+        </li>
+        <li class="incremental">
+            One big event loop with message-passing == ??? 
+            
+        </li>
+    </ul>
+    <p class="subhead">
+        Libevent, libasync, etc. are <i>not</i> dual to threads and locks.  They are crippled &ldquo;Message-oriented systems&rdquo;!
+        
+    </p>
+    <p class="subhead">
+        Alef, which provides locks and channels (and a lot of other things),
+          is dual to itself!
+    </p>
+    </div>
+    
+    
+</div>
+<div class="slide">
+    <h1>Duality, continued.</h1>
+    
+    <p class="subhead">
+        If they are equivalent, why choose one over the other?
+        
+    </p>
+    <ul>
+        <li class="incremental">
+             &ldquo;the main consideration for choosing between them
+            is the nature of the machine architecture upon which the system is being built&rdquo;
+            
+        </li>
+        <li class="incremental">
+            Channels are a good model of the external world.
+        </li>
+        <li class="incremental">
+            As we get more and more parallelism, exposing communication 
+                may be a big architectural win.
+            
+        </li>
+    </ul>
+    <p class="subhead">
+        Complexity issues
+    </p>
+    <ul>
+        <li class="incremental">
+            Using channels acts as a complexity damper in
+                 a way that locks do not.
+        </li>
+        <li class="incremental">
+             Too easy to just throw in a few locks.
+        </li>
+        <li class="incremental">
+             A little more work to convert single-threaded code to channels.
+            
+        </li>
+    </ul>
+    <p class="subhead">
+        If all you have is locks, use them to build 
+          multiple-reader, multiple-writer finite queues.
+    </p>
+    <ul>
+        <li>
+            (This is what Plan 9's libthread does too.)
+            
+        </li>
+    </ul>
+</div>
+<div class="slide">
+    <h1>Summary</h1>
+    
+    <div class="incremental">
+    <p class="subhead">
+        The &ldquo;threads vs. events&rdquo; question is misphrased.
+    </p>
+    <p class="subhead">
+        Locks and top-level event loops are both evil.
+    </p>
+    <p class="subhead">
+        Threads with events (message passing) works very well.
+    </p>
+    <ul>
+        <li>
+            exposes interfaces, often composable ones
+        </li>
+        <li>
+            can produce simpler, easier to understand programs
+        </li>
+    </ul>
+    <p class="subhead">
+        Plan 9 thread library provides necessary primitives.
+    </p>
+    <p class="subhead">
+        Go forth and sin no more.
+    </p>
+    </div>
+    
+    <p class="subhead">
+        &nbsp;
+    </p>
+    <p class="subhead">
+        &nbsp;
+        
+    </p>
+    <p class="subhead">
+        <tt>http://swtch.com/~rsc/talks/</tt>
+        
+        
+    </p>
+</div>
+<div class="slide">
+    <h1>Cooperative scheduling</h1>
+    
+    <div class="incremental">
+    
+    <p class="subhead">
+        Alef introduced cooperatively-scheduled <i>tasks</i>.
+        
+    </p>
+    <ul>
+        <li>
+            <i>Tasks</i> are hard-wired to a particular proc.
+        </li>
+        <li class="incremental">
+            In a proc, only one task runs at a time.
+        </li>
+        <li class="incremental">
+            Must block explicitly (send, receive, alt).
+        </li>
+        <li class="incremental">
+            System calls block entire proc, don't reschedule task.
+        </li>
+        <li class="incremental">
+            Tasks within a proc can share data in tiny critical sections without locks
+                (as long as sections cannot block).
+        </li>
+        <li class="incremental">
+            Tasks in other procs still run independently.
+            
+        </li>
+    </ul>
+    <p class="subhead">
+        Typical use: procs for I/O, with one main proc for all tasks.
+        
+    </p>
+    </div>
+    
+</div>
+<div class="slide">
+    <h1>Example: acme fsys proc</h1>
+    
+    <div class="incremental">
+    <p class="subhead">
+        Acme's implementation relies heavily on tasks.
+    </p>
+    <ul>
+        <li>
+            Almost all tasks in main proc, sharing data, no locks.
+        </li>
+        <li>
+            9P protocol I/O (blocking system calls) must be in separate proc.
+        </li>
+        <li>
+            9P service logic needs to run in the main proc.
+            
+        </li>
+    </ul>
+    <p class="subhead">
+        Solution: a pool of execution server tasks running in the main proc:
+        
+    </p>
+    <pre>
+    Xfid.ctl(Xfid *x)
+    {
+        for(;;){
+            (*&lt;-x-&gt;c)(x);     /* f = &lt;- x-&gt;c; f(x); */
+            bflush();         /* update screen */
+            cxfidfree &lt;-= x;  /* make x available for reuse */
+        }
+    }
+    </pre>
+    
+    <ul>
+        <li>
+            Actually many of these tasks, allocated on demand.
+        </li>
+    </ul>
+    </div>
+    
+    
+</div>
+<div class="slide">
+    <h1>Example: acme fsys proc</h1>
+    
+    <p class="subhead">
+        Rob Pike, <a href="http://plan9.bell-labs.com/sys/doc/acme.html">Acme: a User Interface for Programmers</a>
+    </p>
+    <ul>
+        <li>
+            &ldquo;Although this sequence may seem complicated, it is just a few lines
+                of code and is in fact far simpler
+                than the management of the I/O queues in 8½.
+                The hard work of synchronization is done by the Alef run time system.
+                Moreover, the code worked the first time, which cannot be said for the code in 8½.&rdquo;
+            
+            
+        </li>
+    </ul>
+</div>
+<div class="slide">
+    <h1>Cooperative scheduling: a warning</h1>
+    
+    <div class="incremental">
+    <p class="subhead">
+        Cooperative scheduling is convenient, seductive.
+    </p>
+    <ul>
+        <li>
+            no need to worry about concurrency, locks
+        </li>
+        <li>
+            can safely share data between tasks in a single proc
+            
+        </li>
+    </ul>
+    <p class="subhead">
+        Also subtle, precarious.
+    </p>
+    <ul>
+        <li>
+            might accidentally call a function that blocks,
+                breaking up what needs to be an atomic section
+        </li>
+        <li>
+            system call I/O (blocks proc) is different from channel I/O (reschedules task)
+            <ul>
+                <li class="incremental">
+                    Plan 9 from User Space adds a &ldquo;turn off task rescheduling in this proc&rdquo;
+                           primitive to mimic system call I/O even when using channels.
+                    
+                </li>
+            </ul>
+        </li>
+    </ul>
+    <p class="subhead">
+        Ultimately, perhaps not worth the trouble.  But there it is.
+    </p>
+    <ul>
+        <li>
+            tempting to reintroduce locks anyway (p2psim)
+        </li>
+        <li>
+            Dorward and Winterbottom dropped tasks when designing Limbo.
+        </li>
+    </ul>
+    </div>
+    
+    
+</div>
+</body></html>

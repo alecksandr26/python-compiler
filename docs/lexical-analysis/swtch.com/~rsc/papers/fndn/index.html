@@ -1,0 +1,1330 @@
+<html>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<title>Fast, Inexpensive Content-Addressed Storage in Foundation</title>
+<style type="text/css"><!--
+body {
+	background-color: white;
+	color: black;
+	font-family: serif;
+	font-size: medium;
+	line-height: 1.2em;
+	margin-left: 0.5in;
+	margin-right: 0.5in;
+	margin-top: 0;
+	margin-bottom: 0;
+}
+
+p.lp {
+	text-indent: 0in;
+	text-align: justify;
+}
+
+p.lp-left {
+	text-indent: 0in;
+	text-align: left;
+}
+
+p.tlp {
+	text-indent: 0in;
+	text-align: justify;
+}
+
+p.pp {
+	margin-top: 0px;
+	margin-bottom: 0px;
+	text-indent: 0.35in;
+	text-align: justify;
+}
+
+p.foot {
+	font-size: 80%;
+	text-align: justify;
+}
+
+p.caption {
+	text-align: left;
+	margin-left: 1em;
+	margin-right: 1em;
+	font-size: small;
+	line-height: 1.2em;
+}
+
+p.bib {
+	text-align: left;
+	margin-bottom: 0.2em;
+	margin-top: 0.2em;
+}
+
+code {
+	font-family: monospace;
+	font-size: 100%;
+}
+
+div.floater {
+	float: right;
+	width: 50%;
+	padding-left: 1em;
+}
+
+div.fig-narrow {
+	position: relative;
+	border-style: solid;
+	border-width: 1px;
+	margin-top: 2em;
+	margin-bottom: 2em;
+	margin-left: auto;
+	margin-right: auto;
+}
+
+div.fig {
+	clear: right;
+	border-style: solid;
+	border-width: 1px;
+	margin-top: 2em;
+	margin-bottom: 2em;
+	width: 100%;
+	margin-left: auto;
+	margin-right: auto;
+}
+
+img {
+	margin-top: 1em;
+}
+
+h2.sh {
+	text-indent: 0in;
+	text-align: left;
+	margin-top: 2em;
+	margin-bottom: 0.05in;
+	font-weight: bold;
+	font-size: medium;
+}
+
+.box {
+	border-style: dashed;
+	border-width: 1px;
+}
+
+pre.p1 {
+	text-indent: 0in;
+	text-align: left;
+	line-height: 1.1em;
+	font-size: 0.9em;
+	margin-left: 0.5in;
+	margin-right: 0.5in;
+	margin-top: 0;
+	margin-bottom: 0;
+}
+
+h1.tl {
+	font-weight: bold;
+	font-size: medium;
+	text-align: center;
+	margin-top: 3em;
+}
+
+h2.au {
+	font-weight: normal;
+	font-size: medium;
+	text-align: center;
+	margin-top: 1.5em;
+	margin-bottom: 3em;
+}
+
+p.copy {
+	text-align: center;
+	text-indent: 0in;
+	margin-top: 3em;
+	margin-bottom: 3em;
+	font-size: small;
+}
+
+--></style>
+</head>
+<body>
+<h1 class=tl>
+Fast, Inexpensive Content-Addressed Storage in Foundation
+</h1>
+<h2 class=au>
+Sean Rhea*, Meraki Inc.
+<br>
+Russ Cox, MIT CSAIL
+<br>
+Alex Pesterev*, MIT CSAIL
+<br>
+<br>
+* Work done while at Intel Research, Berkeley
+
+</h2>
+
+
+
+
+
+
+
+
+<h2 class=sh>Abstract</h2>
+<p class=lp></p><p class=pp><i>Foundation</i> is a preservation system
+for users&rsquo; personal, digital artifacts.
+Foundation preserves all of a user&rsquo;s
+data and its dependencies&mdash;fonts, programs, plugins, kernel, and
+configuration state&mdash;by archiving nightly snapshots of the user&rsquo;s
+entire hard disk.  Users can browse through these images to view old
+data or recover accidentally deleted files.  To access data that a
+user&rsquo;s current environment can no longer interpret, Foundation boots the
+disk image in which that data resides under an emulator, allowing the
+user to view and modify the data with the same programs with which the
+user originally accessed it.</p><p class=pp>This paper describes Foundation&rsquo;s archival storage layer, which
+uses content-addressed storage (CAS) to retain nightly snapshots
+of users&rsquo; disks indefinitely.  Current state-of-the-art CAS systems,
+such as Venti&nbsp;[34], require multiple high-speed disks or other
+expensive hardware to achieve high performance.  Foundation&rsquo;s archival
+storage layer, in contrast, matches the storage efficiency of Venti
+using only a single USB hard drive.  Foundation archives disk snapshots
+at an average throughput of 21&nbsp;MB/s and restores them at an average of
+14&nbsp;MB/s, more than an order of magnitude improvement over Venti running
+on the same hardware.  Unlike Venti, Foundation does not rely on the
+assumption that SHA-1 is collision-free.</p><p class=pp></p>
+
+<h2 class=sh>1. Introduction</h2>
+<p class=lp></p><p class=pp>We are &ldquo;living in the midst of digital Dark Ages&rdquo;&nbsp;[23].
+As computer users increasingly store their most personal
+data&mdash;photographs, diaries, letters&mdash;only in digital form, they
+practically ensure that it will be unavailable to future
+generations&nbsp;[28].</p><p class=pp>Considering only the cost of storage, this state of affairs seems
+inexcusable.  A half-terabyte USB hard drive now costs just over &#36;100,
+while reliable remote storage has become an inexpensive commodity:
+Amazon&rsquo;s S3 service&nbsp;[1], for example, charges only
+&#36;0.15/GB/month.</p><p class=pp>Alas,
+mere access to the bits of old
+files does not imply the ability to interpret those bits.  Some file
+formats may be eternal&mdash;JPEG, perhaps&mdash;but most are ephemeral.
+Furthermore, the interpretation of a particular file may
+require a non-trivial set of support files.  Consider, for example,
+the files needed to view a web page in its original
+form: the HTML itself, the fonts it uses, the right web browser
+and plugins.  The browser and plugins themselves depend on a
+particular operating system, itself depending on a
+particular hardware configuration.
+In the worst case, a user in the distant future might need to
+replicate an entire hardware-software stack to view an old file as it
+once existed.</p><p class=pp><i>Foundation</i> is a system that preserves users&rsquo; personal digital
+artifacts regardless of the applications with which they create those
+artifacts and without requiring any preservation-specific effort on the
+users&rsquo; part.  To do so, it permanently archives nightly snapshots of a
+user&rsquo;s entire hard disk.  These snapshots contain the complete software
+stack needed to view a file in bootable form: given an emulator for the
+hardware on which that stack once ran, a future user can view a file
+exactly as it was.  To limit the hardware that future emulators must
+support, Foundation confines users&rsquo; environments to a virtual machine.
+Today&rsquo;s virtual machine monitor thus serves as the template for
+tomorrow&rsquo;s emulator.</p><p class=pp>Using emulation for preservation is not a new idea (see,
+e.g.&nbsp;[38,15,35]), but by archiving
+a complete image of a user&rsquo;s disk, Foundation captures <i>all</i> of the
+user&rsquo;s data, applications, and configuration state as a single,
+<i>consistent</i> unit.
+By archiving a new snapshot every night, Foundation prevents the
+installation of new applications from interfering with a user&rsquo;s ability
+to view older data&mdash;e.g., by overwriting the shared libraries on which old
+applications depend with new and incompatible versions&nbsp;[8].
+Users view each artifact using the
+most recent snapshot that correctly interprets that artifact.
+There is no need for them to manually create an emulation environment
+particular to each artifact, or even to choose in advance which
+artifacts will be preserved.</p><p class=pp>Of course, such comprehensive archiving is not without risk: the cost of
+storing nightly snapshots of users&rsquo; disks indefinitely may turn out to
+be prohibitive.  On the other hand, the Plan&nbsp;9 system archived nightly
+snapshots of its file system on a WORM jukebox for
+years&nbsp;[32,33], and the subsequent Venti system&nbsp;[34]
+drastically reduced the storage required for those archives by
+using content-addressed storage (CAS)&nbsp;[44,18] to
+automatically identify and coalesce duplicate blocks between snapshots.</p><p class=pp>The Plan&nbsp;9 experience, and our own experience using a 15-disk Venti
+system to back up the main file server of a research group at MIT,
+convinced us that content-addressed storage was a promising technique
+for reducing Foundation&rsquo;s storage costs.  Venti, however, requires multiple,
+high-performance disks to achieve acceptable archival throughput, an
+unacceptable cost in the consumer setting in which we intend to
+deploy Foundation.  A new design seemed necessary.</p><p class=pp>The core contribution of this paper is the design, implementation, and
+evaluation of Foundation&rsquo;s content-addressed storage system.  This system
+is inspired by Venti&nbsp;[34], but we have modified the
+Venti design for consumer use, replacing Venti&rsquo;s expensive RAID array
+and high speed disks with a single, inexpensive USB hard drive.
+Foundation achieves high archival throughput on modest hardware by using
+a Bloom filter to quickly detect new data and by making assumptions
+about the structure of duplicate data&mdash;assumptions we have verified
+using over a year of Venti traces.  Our evaluation of the resulting system
+shows that Foundation achieves read and
+write speeds an order of magnitude higher than Venti on the same hardware.</p><p class=pp>While we built Foundation for digital preservation, content-addressed
+storage is useful in other contexts, and we believe Foundation
+will enable other applications of CAS that were previously
+confined to the enterprise to enter the consumer space.  As an anecdotal
+example, we note that within our own households, most computers share a
+large percentage of their files&mdash;digital photos, music files, mail
+messages, etc.  A designer of a networked household backup server could
+easily reduce its storage needs by adopting Foundation as its storage
+system.</p><p class=pp>In this paper, however, we focus on the CAS layer itself.  To ground the
+discussion, Section&nbsp;2 provides background
+on the Foundation system as a whole.
+Sections&nbsp;3&ndash;5 then present the main
+contributions of the paper&mdash;the design, implementation, and evaluation
+of Foundation&rsquo;s content-addressed storage layer.
+Section&nbsp;6 surveys related work, Section&nbsp;7
+describes future work, and Section&nbsp;8 concludes.</p><p class=pp><div class="floater"><div class="fig-narrow">
+<center><img src="arch1.png" /></center>
+<p class=caption><b>Figure 1.</b> Foundation system components.
+A Foundation user works inside the active VM, which is
+archived daily to an external hard disk and (optionally) a remote
+location.  Foundation presents archival file system data using SMB
+and enables users to interpret obsolete file formats by booting
+VM snapshots from days or years past.</p>
+
+
+</div></div></p><p class=pp></p><h2 class=sh>2. Background: Foundation</h2>
+<p class=lp>
+</p><p class=pp></p><p class=pp>Figure&nbsp;1 shows the major components of a Foundation system.
+The host operating system runs on the raw hardware, providing
+a local file system and running Foundation.
+Users work inside the active VM, which runs
+a conventional OS like Windows XP or Linux atop Foundation&rsquo;s
+<i>virtual machine monitor</i> (VMM).
+The VMM stores virtual machine state (disk contents
+and other metadata) in
+the local file system.
+Every night, Foundation&rsquo;s <i>virtual machine archiver</i> takes
+a real-time snapshot of the active VM&rsquo;s state, storing the
+snapshot in the <i>CAS layer</i>.</p><p class=pp>In addition to taking nightly snapshots of the VM&rsquo;s state, the VM
+archiver also provides read-only access to previously-archived disk
+images.  The VMM uses this functionality to boot past images;
+the figure shows an archived VM snapshot
+running in a separate VM.
+As a convenience,
+Foundation provides a <i>file system snapshot server</i> that
+interprets archived disk images, presenting each day&rsquo;s file system
+snapshot in a synthetic file tree
+(like Plan&nbsp;9&rsquo;s dump file system&nbsp;[32] or NetApp&rsquo;s
+<code>.snapshot</code> directories&nbsp;[17])
+that VMs can access over SMB.<sup>1</sup>
+A user finds files from May 1, 1999, for example,
+in <code>/snapshot/1999/05/01/</code>.
+This gives the active VM access to old data, but it cannot
+guarantee that today&rsquo;s system will be able to
+understand the data.
+The fallback of being able to boot the VM image
+provides that guarantee.</p><p class=pp>Foundation&rsquo;s CAS layer provides efficient
+storage of nightly snapshots taken by the VM archiver.
+The CAS layer stores archived data
+on an inexpensive, external hard disk.
+Users can also configure the CAS layer to replicate its archives
+onto a remote FTP server for fault tolerance.
+To protect users&rsquo; privacy, the CAS layer encrypts
+data before writing to the external hard drive or
+replicating it.  It also signs the data
+and audits the local disk and replica
+to detect corruption or tampering.</p><p class=pp>As a simple optimization, Foundation interprets the partition table and
+file systems on the guest OS&rsquo;s disk to identify any swap files
+or partitions.  It treats such swap space as being filled
+with zeros during archival.</p><p class=pp>The remainder of this section discusses the components of Foundation
+in detail, starting with the VMM and continuing through the VM archiver
+and CAS layer.</p><p class=pp><p class=foot><sup>1</sup> Providing the snapshot tree requires
+that Foundation interpret the partition table and file systems
+on the guest OS&rsquo;s disk.  Foundation interprets ext2/3 and NTFS
+using third-party libraries.  Support for other
+file systems is easy to add, and if no such library exists, a
+user can always boot the VM image to access a file.</p>
+</p><h2 class=sh>2.1. Virtual Machine Monitor</h2>
+<p class=lp></p><p class=pp>Foundation uses VMware Workstation as its virtual machine
+monitor.
+Foundation configures
+VMware to store the contents of each emulated disk as a single,
+contiguous file, which we call the disk image.
+VMware&rsquo;s snapshot facility stores the complete state of a VM at a
+particular instant in time.  Foundation uses this facility to acquire
+consistent images of the VM&rsquo;s disk image.</p><p class=pp>To take a snapshot, VMware reopens the disk image
+read-only and diverts all subsequent disk writes to a
+new partial disk image.
+To take a second snapshot, VMware reopens the first partial disk image
+read-only and diverts all subsequent disk writes to a second
+partial disk image.
+A sequence of snapshots thus results in a stack of partial disk images,
+with the original disk image at the bottom.
+To read a sector from the virtual disk, VMware works down
+the stack (from the most recent to the oldest partial disk image, ending with
+the original disk) until it finds a value for that sector&nbsp;[2].</p><p class=pp>To discard a snapshot,
+VMware removes the snapshot&rsquo;s partial disk image
+from the stack and applies the writes contained in that
+image to the image below it on the stack.
+Notice that this procedure works for
+discarding any snapshot, not just the most recent one.</p><p class=pp>The usual use of snapshots in VMware is to record a working state of the
+system before performing a dangerous operation.  Before installing a new
+application, for example, a user can snapshot the VM, rolling back to
+the snapshotted state if the installation fails.</p><p class=pp><div class="floater"><div class="fig-narrow">
+<center><img src="snap.png" /></center>
+<p class=caption><b>Figure 2.</b> The VMware disk layers when the VM archiver archives disk image snapshot <i>k</i>+1.
+(a) Before the snapshot.  The base VMware disk corresponds
+to snapshot <i>k</i>, already archived; since then VMware has been saving disk writes in
+a partial disk image layered on top of the base image.
+(b) During the snapshot archival process.  The VM archiver directed
+VMware to create a new snapshot, <i>k</i>+1, adding a second partial disk image
+to the disk stack.
+The earlier partial disk image contains only the disk sectors that
+were written between snapshots <i>k</i> and <i>k</i>+1.  The VM archiver
+saves these using the CAS layer.
+(c) After the snapshot has been archived.  The VM archiver directs
+VMware to discard snapshot <i>k</i>.  VMware applies the writes from
+the corresponding partial disk image to the base disk image and
+(d) discards the partial disk image.</p>
+
+
+</div></div></p><p class=pp></p><h2 class=sh>2.2. Virtual Machine Archiver</h2>
+<p class=lp></p><p class=pp></p><p class=pp>Foundation uses
+VMware&rsquo;s snapshot facility
+both
+to obtain consistent images of the disk and
+to track daily changes between such images.</p><p class=pp>Foundation archives consistent images of the disk as follows.
+First, the VM archiver
+directs VMware to take a snapshot of the active VM,
+causing future disk writes to be diverted into a new partial disk image.
+The archiver then reads the now-quiescent original disk image,
+storing it in the CAS layer along with the VM configuration state
+and metadata about
+when the snapshot was taken.
+Finally, the virtual machine archiver directs VMware to
+discard the snapshot.
+Using a snapshots in this way allows Foundation to archive a consistent
+disk image without suspending the VM or interrupting the user.</p><p class=pp>Note that the above algorithm requires Foundation to scan the entire
+disk image during the nightly archival process.  For a large disk image,
+this process can take considerable time.  For this reason, Foundation
+makes further use of the VMM&rsquo;s snapshotting facility to track daily
+changes in the disk image as illustrated in Figure&nbsp;2.</p><p class=pp>Between snapshots, the VM archiver keeps VMware in a
+state where the bottom disk image on the stack
+corresponds to the last archived snapshot (say, snapshot <i>k</i>),
+with VMware recording writes since that snapshot in
+a partial disk image.
+To take and archive snapshot <i>k</i>+1,
+the VM archiver takes another VMware snapshot,
+causing VMware to push a new partial disk image
+onto the stack.
+The VM archiver then archives only those blocks written to
+the now read-only partial disk image
+for snapshot <i>k</i>.
+Once those blocks have been saved,
+the VM archiver directs VMware to discard snapshot <i>k</i>,
+merging those writes into the base disk image.</p><p class=pp>Using VM snapshots in this way allows Foundation to archive a consistent
+image of the disk without blocking the user during the archival process.
+However, because Foundation does not yet use VMware&rsquo;s &ldquo;SYNC driver&rdquo; to
+force the file system into a consistent state before taking a snapshot,
+the guest OS may need to run a repair process such as <i>fsck</i> when
+the user later boots the image.
+An alternate
+approach would archive the machine state and memory as well as the
+disk, and &ldquo;resume&rdquo;, rather than boot, old snapshots.  We have not yet
+explored the additional storage costs of this approach.</p><p class=pp></p><h2 class=sh>2.3. CAS Layer</h2>
+<p class=lp></p><p class=pp>Foundation&rsquo;s CAS layer provides the archival storage service that the VM
+archiver uses to save VM snapshots.  This service provides
+a simple <i>read</i>/<i>write</i> interface: passing a disk block to
+<i>write</i> returns a short handle,
+and <i>read</i>, when passed the handle, returns the original block.
+Internally, the CAS layer coalesces
+duplicate writes, so that writing
+the same block multiple times returns the same handle and only stores
+one copy of the block.
+Coalescing duplicate writes makes storing many snapshots feasible;
+the additional storage cost for a new snapshot is proportional only
+to its new data.
+The rest of this paper describes the CAS layer in detail.</p><p class=pp></p><h2 class=sh>3. CAS Layer Design</h2>
+<p class=lp>
+</p><p class=pp>Foundation&rsquo;s CAS layer is modeled on the Venti&nbsp;[34]
+content-addressed storage server, but we
+have adapted the Venti algorithms for use in a single-disk system
+and also optionally eliminated the assumption that SHA-1 is
+free of collisions,
+producing two operating modes for Foundation:
+<i>compare-by-hash</i> and <i>compare-by-value</i>.</p><p class=pp>In this section, we first review Venti
+and then introduce Foundation&rsquo;s two modes.
+We also discuss the expected disk operations used by each
+algorithm, since those concerns drove the design.</p><p class=pp><div class="floater"><div class="fig-narrow">
+<center><img src="disk.png" /></center>
+<p class=caption><b>Figure 3.</b> Venti&rsquo;s on-disk data structures.
+The SHA-1 hash of a data block produces a <i>score</i>,
+the top bits of which are used as a bucket number
+in the index.  The index bucket contains an index entry&mdash;a (score, offset) pair&mdash;indicating the offset of the corresponding
+block in the append-only data log.</p>
+
+
+</div></div></p><p class=pp></p><h2 class=sh>3.1. Venti Review</h2>
+<p class=lp></p><p class=pp>The Venti content-addressed storage server provides
+SHA-1-addressed block storage.
+When a client writes a disk block, Venti replies with
+the SHA-1 hash of the block&rsquo;s contents, called a <i>score</i>,
+that can be used to identify the block in future read requests.
+The storage server provides read/write access to
+disk blocks, typically ranging in size from 512 bytes
+up to 32 kilobytes.
+Venti clients conventionally store larger data streams
+in hash trees (also known as Merkle trees&nbsp;[29]).</p><p class=pp></p><p class=pp>As illustrated in Figure&nbsp;3,
+Venti stores blocks in an append-only data log
+and maintains an index that maps blocks&rsquo; scores to their offsets
+in the log.  Venti implements this index as a on-disk hash table, where
+each bucket
+contains (score, log offset) pairs for
+a subsection of the 160-bit score space.
+Venti also maintains two write-through caches in memory:
+the <i>block cache</i> maps blocks&rsquo; scores to the blocks&rsquo; values,
+and the <i>index cache</i> maps blocks&rsquo; scores to the blocks&rsquo; log
+offsets.</p><p class=pp>Figure&nbsp;4(a) gives pseudocode for the Venti read and write
+operations.  To satisfy a read of a block with a given score,
+Venti first looks in the block cache.
+If the block is not found in the block cache, Venti
+looks up the block&rsquo;s offset in the log, first
+checking the index cache and then the index itself.  If Venti finds a log
+offset for the block, it reads the block from the log and returns the
+block.  Otherwise, it returns an error (not shown).  Writes are handled
+similarly.  Venti first checks to see if it has an existing offset for
+the block using the two in-memory caches and then the index, returning
+immediately if so.  Otherwise, it appends the block to the log and updates
+its index and caches before returning.</p><p class=pp>Note that Venti must read at least one block of its index to satisfy a
+read or write that misses in both the block and index caches.  Because
+blocks&rsquo; scores are essentially random, each such operation necessitates
+at least one seek to read the index.  In a single-disk system,
+these seeks limit throughput to
+<<i>i</i>><i>block</i>&#58;<i>size</i></<i>i</i>>/<<i>i</i>><i>seek</i>&#58;<i>time</i></<i>i</i>>.  The Venti prototype
+striped its index across eight dedicated, high-speed disks so that it could
+run eight times as many seeks at once.</p><p class=pp><div class="fig"><div class="">
+<center><img src="alg.png" /></center>
+
+<p class=caption><b>Figure 4.</b> Algorithms for reading and writing blocks in (a) Venti and
+Foundation&rsquo;s (b) compare-by-hash
+and (c) compare-by-value modes.
+Italics in (b) mark differences from (a): the addition of a Bloom filter,
+the use of a buffer to batch index updates in <i>write</i>,
+and the loading of entire arena summaries into the index cache after a miss
+in <i>lookupscore</i>.
+Italics in (c) mark differences from (b): the use of log offsets
+to identify blocks,
+the use of an insecure hash function to identify potential
+duplicate writes, the possibility of multiple index entries
+for a given score, and the need to check existing blocks&rsquo; contents
+against new data in <i>lookupdata</i>.
+</p>
+
+
+</div></div>
+<div class="fig"><div class="">
+<center><img src="diskfig.png" /></center>
+<p class=caption><b>Figure 5.</b> Disk operations required to handle the five different read/write
+cases.
+<i>A</i> is the number of blocks per arena,
+<i>B</i> is the probability of a Bloom filter false positive,
+<i>C</i> is the probability of a hash collision,
+<i>I</i> is the size of an index bucket,
+<i>L</i> is the size of a log data block,
+<i>S</i> is the size of an arena summary,
+and
+<i>W</i> is the size of the write buffer in index entries.
+</p>
+
+
+</div></div></p><p class=pp></p><p class=pp></p><p class=pp></p><h2 class=sh>3.2. Foundation: Compare-by-Hash Mode</h2>
+<p class=lp></p><p class=pp>While Venti was designed to provide archival service to many
+computers, Foundation is aimed at individual consumers and
+cannot afford multiple disks to mask seek latency.
+Instead, Foundation stores both its archive and index on a a single,
+inexpensive USB hard drive and uses additional caches to improve
+archival throughput.<sup>2</sup></p><p class=pp>In compare-by-hash mode, Foundation optimizes for two request types:
+sequential reads (reading blocks in the order in which they were
+originally written) and fresh writes (writing new blocks).</p><p class=pp>Foundation stores its log as a collection of 16&nbsp;MB <i>arenas</i> and
+stores for each arena a separate <i>summary</i> file that lists all of
+the (score, offset) pairs the arena contains.<sup>3</sup>
+To take advantage of the spatial locality inherent in sequential reads,
+each time Foundation reads its
+on-disk index to find the log offset of some block, it loads and caches
+the entire summary for the arena that spans the discovered offset.
+Reading this summary costs an additional seek.  This cost pays off in
+subsequent reads to the same arena, as Foundation finds the log
+offsets of the affected blocks in the cached summary, avoiding seeks
+in the on-disk index.</p><p class=pp>Figure&nbsp;5 summarizes the costs in disk operations of each
+path through the pseudocode in Figure&nbsp;4.  In addition to
+sequential reads and fresh writes, the figure shows costs for
+out-of-order reads (reading blocks in a different order than that
+in which they were written), sequential duplicate writes (writing
+already-written blocks in the same order in which they were originally
+written), and out-of-order duplicate writes (writing already-written
+blocks in a different order).</p><p class=pp>Note that for out-of-order disk reads and for the first disk read in each arena,
+compare-by-hash mode is slower than Venti, as it performs an additional
+seek to read the arena summary.  In return, Foundation performs
+subsequent reads at the full throughput of the disk.
+Section&nbsp;5 shows that this tradeoff improves overall
+throughput in real workloads.</p><p class=pp>On fresh writes, Venti performs three seeks: one to read the index and
+determine the write is fresh, one to append the new block to the log,
+and one to update the index with the block&rsquo;s log offset (see
+Figure&nbsp;5).</p><p class=pp>Foundation eliminates the first of these three seeks by maintaining an
+in-memory Bloom filter&nbsp;[6] summarizing the all of the scores in
+the index.  A Bloom filter is a randomized data structure for testing
+set membership.  Using far less memory than the index itself, the Bloom filter
+can check whether a given score is in the index, answering either &ldquo;probably yes&rdquo;
+or &ldquo;definitely no&rdquo;.
+A &ldquo;probably yes&rdquo; answer for a score that is <i>not</i> in the index
+is called a <i>false positive</i>.  Using enough memory, the probability of a false
+positive can be driven arbitrarily low.  (Section&nbsp;4
+discuses sizing of the Bloom filter.)  By first checking the in-memory
+Bloom filter, Foundation determines that a write is fresh without
+reading the on-disk index in all but a small fraction of these writes.</p><p class=pp>By buffering index updates, Foundation also eliminates the seek Venti
+performs to update the index during a fresh write.  When this buffer
+fills, Foundation applies the updates in a single, sequential pass over
+the index.  Fresh writes thus proceed in two phases: one phase writes
+new data to the log and fills the index update buffer; a second phase
+flushes the buffer.  During the first phase, Foundation performs no
+seeks within the index; all disk writes sequentially append to the end
+of the log.  In return, it must occasionally pause to flush the index
+update buffer; Section&nbsp;5 shows that this tradeoff improves
+overall write throughput in real workloads.</p><p class=pp><p class=foot><sup>2</sup> An alternative approach&mdash;storing the
+index in Flash memory&mdash;would eliminate seek cost for reads but
+greatly increase it for writes.  Current Flash memories require around
+40&nbsp;ms for random writes.</p>
+<p class=foot><sup>3</sup> This design was
+inspired by Venti&rsquo;s log arenas.  We do not know whether Venti&rsquo;s
+design was inspired by the log segments of LFS&nbsp;[36].</p>
+</p><h2 class=sh>3.3. Foundation: Compare-by-Value Mode</h2>
+<p class=lp></p><p class=pp>In compare-by-value mode, Foundation does not assume that SHA-1 is
+collision-free.  Instead, it names blocks by their log offsets, and it
+uses the on-disk index only to identify <i>potentially</i> duplicate
+blocks, comparing each pair of potential duplicates byte-by-byte.</p><p class=pp>While we originally investigated this mode due to (in our opinion, unfounded)
+concerns about cryptographic hash collisions
+(see&nbsp;[16,5] for a lively debate), we were
+surprised to find that its overall write performance was close to that
+of compare-by-hash mode, despite the added comparisons.
+Moreover, compare-by-value is <i>always</i> faster for reads, as naming
+blocks by their log offsets completely eliminates index lookups during reads.</p><p class=pp>The additional cost of compare-by-value mode can be seen in the
+<i>lookupdata</i> function in Figure&nbsp;4(c).  For each
+potential match Foundation finds in the index cache or the index itself,
+it must read the corresponding block from the log and perform a
+byte-by-byte comparison.</p><p class=pp>For sequential duplicate writes, Foundation reads the blocks for these
+comparisons sequentially from the log.  Although these reads consume
+disk bandwidth, they require a seek only at the start of each new
+arena.  For out-of-order duplicate writes, however, the relative cost of
+compare-by-value is quite high.  As shown in Figure&nbsp;5,
+Venti and compare-by-hash mode complete out-of-order duplicate
+writes without any disk activity at all, whereas compare-by-value mode
+requires a seek per write.</p><p class=pp>On the other hand, hash collisions in compare-by-value mode are only a
+performance problem (as they cause additional reads and byte-by-byte
+comparisons), not a correctness one.  As such, compare-by-value mode can
+use smaller, faster (and less secure) hash functions than Venti and
+compare-by-hash.  Our prototype, for example, uses the top four bytes of
+an MD4 hash to select an index block, and stores the next four bytes in
+the block itself.  Using four bytes is enough to make collisions within
+an index block rare (see Section&nbsp;4).  It also increases the
+number of entries that fit in the index write buffer, making flushes
+less frequent, and decreases the index size, making flushes faster when
+they do occur.  Both changes improve the performance of fresh writes.</p><p class=pp>Section&nbsp;5 presents a detailed performance comparison
+between Venti and Foundation&rsquo;s two modes.</p><p class=pp></p><h2 class=sh>3.4. Compare-by-Hash vs.&nbsp;Compare-by-Value</h2>
+<p class=lp></p><p class=pp>It is worth asking what other disadvantages, other than decreased write
+throughput, compare-by-value incurs in naming blocks by their log
+offsets.</p><p class=pp>The Venti paper lists five benefits of naming blocks by their SHA-1
+hashes:
+(1) blocks are immutable: a block cannot change its value without also changing its name;
+(2) writes are idempotent: duplicate writes are coalesced;
+(3) the hash function defines a universal name space for block identifiers;
+(4) clients can check the integrity of data returned by the server by
+recomputing the hash;
+and
+(5) the immutability of blocks eliminates cache coherence problems
+in a replicated or distributed storage system.</p><p class=pp>Benefits (1), (2), and (3) apply also to naming blocks by their log
+offsets, as long as the log is append-only.  Log writes are applied at
+the client in Foundation&mdash;the remote storage service is merely a
+secondary replica&mdash;so (5) is not an issue.
+Foundation&rsquo;s compare-by-value mode partially addresses benefit (4) by
+cryptographically signing the log, but naming blocks by their hashes, as
+in compare-by-hash mode, still provides a more end-to-end guarantee.</p><p class=pp>Our own experience with Venti also provides one obscure, but interesting case in
+which naming blocks by their SHA-1 hashes
+provides a small but tangible benefit.
+A simultaneous failure of both the backup disk and the remote replica
+may result in the loss of some portion of the log, after which
+reads for the lost blocks will fail.
+In archiving the user&rsquo;s current virtual machine, however,
+Foundation may encounter
+many of the lost blocks.  When it does so, it will append them to the
+log as though they were new, but because it names them by their SHA-1
+hashes, they will have the same names they had before the failure.  As
+such, subsequent reads for the blocks will begin succeeding again.  In
+essence, archiving current data can sometimes &ldquo;heal&rdquo; an injured older archive.
+We have used this technique successfully in the past to recover from
+corrupted Venti archives.</p><p class=pp></p><h2 class=sh>4. Implementation</h2>
+<p class=lp>
+</p><p class=pp>The Foundation prototype consists of just over 14,000 lines of C++ code.
+It uses VMware&rsquo;s VIX
+library&nbsp;[3] to
+take and delete VM snapshots.  It uses GNU parted, libext2, and libntfs
+to read interpret disk images for export in the <code>/snapshot</code>
+tree.</p><p class=pp>The CAS layer stores its arenas, arena summaries, and index on an
+external USB hard disk.  To protect against loss of or damage to this
+disk, the CAS layer can be configured to replicate the log arenas over
+FTP using libcurl.  Providers such as <code>dot5hosting.com</code>
+currently lease remote storage for as little as &#36;5/month for 300&nbsp;GB of
+space.  While this storage may not be as reliable as that offered by
+more expensive providers, we suspect that fault-tolerance obtained
+through the combination of one local and one remote replica is
+sufficient for most users&rsquo; needs.  The CAS layer does not replicate the
+arena summaries or index, as it can recreate these by scanning the log.</p><p class=pp>While users may trust such inexpensive storage providers as a secondary
+replica for their data, they are less likely to be comfortable
+entrusting such providers with the contents of their most private data.
+Moreover, the external hard drive on which Foundation stores its data
+might be stolen.  The CAS layer thus encrypts its log arenas to protect
+users&rsquo; privacy, and it cryptographically signs the arenas to detect
+tampering.</p><p class=pp>For good random-access performance, our implementation uses a
+hierarchical HMAC signature and AES encryption in counter
+mode&nbsp;[11] to sign and encrypt arenas.  The combination allows
+Foundation to read, decrypt, and verify each block individually (i.e.,
+without reading, decrypting, and verifying the entire arena in which a
+block resides).  Foundation implements its hierarchical HMAC and
+counter-mode AES cipher using the OpenSSL project&rsquo;s implementations of
+AES and HMAC.  (It also uses OpenSSL&rsquo;s SHA-1 and MD4 implementations to
+compute block hashes.)</p><p class=pp>Foundation uses the file system in user-space (FUSE) library to export
+its <code>/snapshot</code> tree interface to the host OS.  The guest OS
+then mounts the host&rsquo;s tree using the SMB protocol.  To provide the
+archived disk images for booting under VMware, Foundation uses a
+loopback NFS server to create the appearance of a complete VMware
+virtual machine directory, including a <code>.vmx</code> file, the
+read-only disk image, and a <code>.vmdk</code> file that points to the
+read-only image as the base disk while redirecting new writes to an
+initially empty snapshot file.</p><p class=pp>By default, the prototype uses a 192&nbsp;MB index cache&mdash;with 128&nbsp;MB
+reserved for buffering index writes and the remaining 64&nbsp;MB managed in
+LRU order&mdash;and a 1&nbsp;MB block cache.  It also caches 10 arena summaries
+in LRU order, using approximately 10&nbsp;MB more memory.  The prototype
+stores index entries with 6&nbsp;bytes for the log offset, 20&nbsp;bytes for the
+score in compare-by-hash mode, and 4&nbsp;bytes for the score in
+compare-by-value mode.  It sizes the index to average 90&#37; full for a
+user-configurable expected maximum log size.  In compare-by-hash mode, a
+100&nbsp;GB log yields a 5.6&nbsp;GB index.  The same log yields a 2.2&nbsp;GB index in
+compare-by-value mode.  The prototype relocates index block overflow
+entries using linear probing.  It sizes its Bloom filter such that half
+its bits will be set when the log is full and lookups see a 0.1&#37; false
+positive rate.  For a 100&nbsp;GB log, the Bloom filter consumes 361&nbsp;MB of
+memory.  To save memory, the prototype loads the Bloom filter only
+during the nightly archival process; it is not used during read-only
+operations such as booting an image or
+mounting the <code>/snapshot</code> tree.</p><p class=pp>Currently, the Foundation prototype uses 512-byte log blocks to
+maximize alignment between data stored from different file systems.
+Using a 512-byte block size also aligns blocks with file systems within
+a disk, as the master boot record (MBR), for example, is only 512-bytes
+long, and the first file system usually follows the MBR directly.  That
+said, per-block overheads are an significant factor in Foundation&rsquo;s
+performance, so we are considering increasing the default block size to
+4&nbsp;kB (now the default for most file systems) and handling the MBR as a
+special case.</p><p class=pp></p><h2 class=sh>5. Evaluation</h2>
+<p class=lp>
+</p><p class=pp>To evaluate Foundation, we focus on the performance
+of saving and restoring VM snapshots,
+which corresponds directly to the performance of the CAS layer.</p><p class=pp>The most important performance metric for Foundation is how long it
+takes to save the VM disk image each night.  Many users suspend or power
+down their machines at night; a nightly archival process that makes
+them wait excessively long before doing so is a barrier to adoption.
+(We envision that snapshots are taken automatically as part of the
+shutdown/sleep sequence.)
+We are also concerned with how long it takes to boot old
+system images and recover old file versions from the <code>/snapshot</code> tree, though we expect such operations to be less frequent
+than nightly backups, so their performance is less critical.</p><p class=pp>We evaluate Foundation&rsquo;s VM archiver in two experiments.
+First, we analyze the performance of the CAS layer
+on microbenchmarks in three ways:
+using the disk operation counts from Figure&nbsp;5,
+using a simulator we wrote, and using
+Foundation itself.
+These results give insight into Foundation&rsquo;s performance
+and validate the simulator&rsquo;s predictions.
+Second, we measure Foundation&rsquo;s archival throughput under simulation
+on sixteen months of nightly snapshots
+using traces derived from our research group&rsquo;s own
+backups.</p><p class=pp>In both experiments,
+we compare Foundation in compare-by-hash
+and compare-by-value mode with
+a third mode that implements the
+algorithms described in the Venti paper.
+Making the comparison this way rather than using
+the original Venti software allows us to compare the
+algorithms directly, without worrying about other
+variables, such as file system caches, that would
+be different between Foundation and the actual Venti.
+(Although we do not present the results here,
+we have also implemented Foundation&rsquo;s compare-by-hash
+improvements in Venti itself and obtained similar speedups.)</p><p class=pp></p><p class=pp></p><h2 class=sh>5.1. Experimental setup</h2>
+<p class=lp>
+</p><p class=pp>We ran our experiments on a Lenovo Thinkpad T60 laptop
+with a 2 GHz Intel Core 2 Duo Processor and 2 GB of RAM.
+The laptop runs Ubuntu 7.04 with a Linux 2.6.20 SMP kernel.
+The internal hard disk is a Hitachi Travelstar 5K160 with an
+advertised 11&nbsp;ms seek time and 64&nbsp;MB/s sustained read/write throughput,
+while the external disk is a 320 GB Maxtor OneTouch III with an
+advertised 9&nbsp;ms seek time and 33&nbsp;MB/s sustained read/write throughput.</p><p class=pp>Since Foundation uses both disks through the host OS&rsquo;s file system, we
+measured their read and write throughput through that interface
+using the Unix <code>dd</code> command.  For read throughput, we copied a
+2.2&nbsp;GB file to <code>/dev/null</code>; for write throughput, we copied
+2.2&nbsp;GB of <code>/dev/zero</code> into a half-full partition.
+The Hitachi sustained 38.5&nbsp;MB/s read and 32.2&nbsp;MB/s write
+throughput; the Maxtor sustained 32.2&nbsp;MB/s read and
+26.5&nbsp;MB/s write throughput.</p><p class=pp>To measure average seek time plus rotational latency through the file
+system interface, we wrote a small C program that seeks to a random
+location within the block device using the <code>lseek</code> system call
+and reads a single byte using the <code>read</code> system call.
+In 1,000 such &ldquo;seeks&rdquo; per drive, we measured an average
+latency of 15.0&nbsp;ms on the Hitachi and 13.6&nbsp;ms on the Maxtor.
+The system was otherwise idle during both our throughput and seek
+tests.</p><p class=pp>The simulator uses the disk speeds we measured and
+the same parameters (cache sizes, etc.) as our
+implementation.
+Rather than store the Bloom filter directly, it
+assumes a 0.1&#37; probability of a false positive.</p><p class=pp></p><h2 class=sh>5.2. Microbenchmarks</h2>
+<p class=lp>
+</p><p class=pp>To understand Foundation&rsquo;s performance, we consider
+the disk operations required for each of the six read or write cases
+shown in
+Figure&nbsp;5.
+For each case, we count the number of seeks and the amount
+of data read from and written to the disk.
+From these and the disk parameters measured and reported above,
+we compute the speed of each algorithm in each case.
+Figure&nbsp;6 shows the predicted performance and the
+performance of the prototype.
+(The simulated performance matches the predictions
+made using the equations in Figure&nbsp;5
+exactly.)</p><p class=pp><div class="fig"><div class="">
+<center><img src="microtput.png" /></center>
+<p class=caption><b>Figure 6.</b> Predicted and actual sustained performance, in MB/s, of the three systems on the cases listed in Figure&nbsp;5
+using the hardware described in Section&nbsp;5.1.
+The actual performance of our Venti implementation is faster than
+predicted, because operating system readahead eliminates some seeks.
+The actual performance of Foundation is slightly slower than
+predicted because of unmodeled per-block overheads:
+using a 4096-byte block size (instead of 512 bytes) matches predictions
+more closely.
+</p>
+
+
+</div></div></p><p class=pp>In both prediction and in reality,
+compare-by-hash is significantly faster than Venti for sequential
+accesses,
+at the cost of slowing out-of-order accesses, which load arena summaries
+that end up not being useful.
+Compare-by-value reads faster than compare-by-hash,
+since it avoids the index completely,
+but it handles duplicate writes slower, since it must compare
+each potential duplicate to previously-written data from the log.</p><p class=pp>The most dramatic difference between compare-by-hash
+and compare-by-value is the case of an out-of-order duplicate write
+for which the index entry cache has a corresponding record,
+but the block cache does not.
+In this case, Venti and compare-by-hash can declare the
+write a duplicate without any disk accesses,
+while compare-by-value must load the data from disk,
+resulting in dramatically lower throughput.
+(The throughput for Venti and compare-by-hash is
+limited only by the bandwidth of the local disk in this case.)</p><p class=pp>Sequential duplicate writes are fast in both Foundation modes.
+In compare-by-hash mode, Foundation is limited by
+the throughput of the local disk containing the snapshot.
+The arena summaries needed from the external disk
+are only 5&#37; the size of the snapshot itself.
+In compare-by-value mode, Foundation must read the
+snapshot from the local disk and compare it again
+previously-written data from the log disk.
+Having two disks arms here is the key to good performance:
+on a single-disk system the performance would be
+hurt by seeks between the two streams.</p><p class=pp>Fresh writes proceed at the same speed in both Foundation modes
+except for the index buffer flushes.  Because index entries
+are smaller in compare-by-value mode, the 128 MB buffer
+holds more entries and needs to be flushed less frequently:
+after every 4 GB of fresh writes rather than every 2.3 GB.
+At that rate, index flushes are still an important component
+of the run time.
+Using a larger buffer size or a larger data block size
+would reduce the flush frequency, making the two modes
+perform more similarly.</p><p class=pp>The predictions match Foundation&rsquo;s actual performance to within
+a factor of 2.25, and the relative orderings are all the same.
+Foundation is slower than predicted because the model
+does not account for
+time spent encrypting, signing, verifying,
+and decrypting the log;
+time spent compressing and decompressing blocks;
+and constant (per 512-byte block) overheads in the run-time system.
+Using 4096-byte blocks
+and disabling encryption, compression, and authentication
+yields performance that matches the predictions more accurately.</p><p class=pp></p><h2 class=sh>5.3. Trace-driven Simulation</h2>
+<p class=lp>
+</p><p class=pp><div class="floater"><div class="fig-narrow">
+<center><img src="writebcdf.png" /></center>
+<center><img src="writecdf.png" /></center>
+<p class=caption><b>Figure 7.</b> 
+Distribution of sizes and write times for 400 nightly snapshots
+of one of our research group&rsquo;s home directory disks.
+</p>
+
+
+</div></div></p><p class=pp>We do not yet have long-term data from using Foundation,
+but as mentioned earlier,
+our research group takes nightly physical backups of its
+central file server using a 15-disk Venti server.
+The backup program archives entire file system images, using
+the file system block size as the archival block size.
+We extracted over a year of block traces
+from each of the file server&rsquo;s 10 disks.
+These traces contain, for each night, a list of the disk blocks changed
+from the previous night, along with the blocks&rsquo; SHA-1 hashes.
+We annotated each trace with the data log offsets each block
+would have been stored at if data from the disk were the only data in
+a Venti or Foundation server.
+We then ran the traces in our simulator to compare
+the two Foundation operating modes and the Venti mode.</p><p class=pp>To conserve space, we discuss the results from only one of the traces
+here.  The relative performance of the three algorithms, however, is
+consistent across traces.  The disk for the trace we chose hosts the
+home directories of four users.  The trace covers 400 days.  When the
+trace starts, the disk has 41.7&nbsp;GB of data on it; when the trace ends,
+the disk has 69.9&nbsp;GB of data on it.
+The parameters for the simulation are the same as
+described in Section&nbsp;5.1,
+except that blocks are 32 kB, to
+match the traces, rather than 512 bytes as
+in Foundation.</p><p class=pp>
+The most important metric is the duration of the nightly snapshot
+process.
+Figure&nbsp;7 plots the distributions of snapshot sizes
+and completion times.
+Even though 95&#37; of snapshots are larger than 128 MB,
+the vast majority of snapshots&mdash;90&#37; for compare-by-value
+and 94&#37; for compare-by-hash&mdash;finish in a minute or less.</p><p class=pp></p><p class=pp>Figure&nbsp;8 breaks down the average performance
+of a snapshot backup.
+The differences in snapshot speed&mdash;849&nbsp;kB/s for Venti,
+20,581&nbsp;kB/s for compare-by-hash, and 15,723&nbsp;kB/s for
+compare-by-value&mdash;are accounted for almost entirely
+by the time spent seeking in the external disk.
+Foundation&rsquo;s use of the Bloom filter and arena summaries
+reduces the number of seeks required in compare-by-hash
+mode by a factor of 240 versus Venti.
+Compare-by-value mode reintroduces some seeks by
+reading log blocks to decide that writes are duplicates
+during lookup.</p><p class=pp><div class="fig"><div class="">
+<center><img src="writestats.png" /></center>
+<p class=caption><b>Figure 8.</b> Statistics gathered while writing 400 nightly snapshots, in simulation.
+The average snapshot size is 537&nbsp;MB.  Because
+the VMM identifies which blocks have changed since the
+previous snapshot, on average only 78.5&nbsp;MB of blocks are
+duplicates. There are, however, occasional large spikes of
+duplicates.  9 of the 400 nights contain over 1&nbsp;GB of
+duplicate blocks; 2 contain over 5&nbsp;GB.
+</p>
+
+
+
+</div></div></p><p class=pp>To access archived data, Foundation users will either use the
+file system snapshot server or boot an archived VM.
+In both cases, the relevant parts of disk can be read
+as needed by the file system browser or the VMM.</p><p class=pp>In many cases, Foundation can satisfy such reads quickly.  Comparing the
+measured performance of Foundation in Figure&nbsp;6 with the
+performance of our test system&rsquo;s internal hard drive, we note that
+Foundation&rsquo;s compare-by-value mode is only 1.8 times slower for
+out-of-order reads and 2.2 times slower for sequential reads.  However,
+in eliminating duplicate data during writes, Foundation may introduce
+additional seeks into future reads, since the blocks of a disk image
+being read may originally have been stored as part other disk images
+earlier in the log.  We call this problem <i>fragmentation</i>.</p><p class=pp>Unfortunately, we do not have traces of the reads requests serviced by our
+research group&rsquo;s Venti server, so it is difficult to simulate to what
+degree users will be affected by such fragmentation in practice.  As an
+admittedly incomplete benchmark, however, we simulate reading entire
+disk images for each snapshot.  We return to the fragmentation
+problem in Section&nbsp;7.2.</p><p class=pp></p><p class=pp><div class="fig"><div class="">
+<center><img src="readstats.png" /></center>
+<p class=caption><b>Figure 9.</b> Statistics gathered while reading disk images of 400 nightly snapshots,
+in simulation.  The average disk image is 56&nbsp;GB.</p>
+
+
+</div></div></p><p class=pp>Figure&nbsp;9 summarizes the performance of
+reading full disk images.
+Again the differences in performance are almost entirely
+due to disk seeks: 739 minutes seeking for Venti, 41 minutes seeking for
+compare-by-hash, and 35 minutes seeking for compare-by-value.
+Since compare-by-value eliminates index lookups during read,
+its seeks are all within the data log.
+Such seeks are due to fragmentation, and for compare-by-value mode they
+account for the entire difference between the predicted performance of
+sequential reads in Figure&nbsp;6 with the simulated
+performance in Figure&nbsp;9.</p><p class=pp>In compare-by-value mode, since the block identifiers are log offsets,
+the reads could be reordered to reduce the amount of seeking.
+As a hypothetical, the column labeled &ldquo;Sorted&rdquo;
+shows the performance if the block requests were first sorted
+in increasing log offset.
+This would cut the total seek time from 35 minutes to 8 minutes,
+also improving the number of block cache hits by a factor of 24.
+Although making a list of every block may not be realistic,
+a simple heuristic can realize much of the benefit.
+The column labeled &ldquo;Sort-1024&rdquo; shows the performance
+when 1024 reads at a time are batched and sorted before being
+read from the log.  This simple optimization cuts the seek time to 18 minutes,
+while still improving the number of block cache hits by a factor of 3.2.</p><p class=pp></p><h2 class=sh>6. Related Work</h2>
+<p class=lp>
+</p><p class=pp><i>Related Work in Preservation</i>.
+Most preservation work falls into one of two groups.  (The following
+description is simplified somewhat; see Lee et
+al.&nbsp;[24] for a detailed discussion.)  The first group
+(e.g.&nbsp;[12,14,41,37]) proposes archiving a
+limited set of popular file formats such as JPEG, PDF, or
+PowerPoint.  This restriction limits the digital artifacts that can be
+preserved to those than can be encoded in a supported format.  In
+contrast, Foundation preserves both the applications and configuration
+state needed to view both popular and obscure file formats.</p><p class=pp>In the case that a supported format becomes obsolete, this first group
+advocates automated &ldquo;format migration&rdquo;, in which files in older
+formats are automatically converted to more current ones.  Producing
+such conversion routines can be difficult: witness PowerPoint&rsquo;s
+inability to maintain formatting between its Windows and Mac OS
+versions.  Furthermore, perfect conversion is sometimes impossible, as
+between image formats that use lossy compression.  Rather than migrate
+formats forward in time, Foundation enables travel back in time to the
+environments in which old formats can be interpreted.</p><p class=pp>The second group of preservationists
+(e.g.&nbsp;[38,15]) advocates emulating old
+hardware and/or operating systems in order to run the original
+applications with which users viewed older file formats.  Foundation
+uses emulation, but recognizes that simply preserving old applications
+and operating systems is not enough.  Often, the rendering of a digital
+artifact is dependent on configuration state, optional shared libraries,
+or particular fonts.  A default Firefox installation, for example, may not
+properly display a web page that contains embedded video, non-standard
+fonts, or Flash animations.  Foundation captures all such state by
+archiving full disk images, but it limits the hardware that must be
+emulated to boot such images by confining users&rsquo; daily environments
+within a VM.</p><p class=pp>An offshoot of the emulation camp proposes the construction of emulators
+specifically for archival purposes.  Lorie
+proposed&nbsp;[27] storing with each digital artifact a
+program for interpreting the artifact; he further proposed that such
+programs be written in the language of a Universal Virtual Computer
+(UVC) that can be concisely specified and for which future emulators are
+easy to construct.  Ford has proposed&nbsp;[13] a similar approach, but
+using an x86 virtual machine with limited OS support as the emulation
+platform.  Foundation differs from these two systems in that it archives
+files with the same OS kernel and programs originally used to view them,
+rather than require the creation of new ones specific to archival
+purposes.</p><p class=pp>Internet Suspend/Resume (ISR)&nbsp;[22] and
+Machine Bank&nbsp;[43] use a VM to
+suspend a user&rsquo;s environment on one machine and resume it on another.
+SecondSite&nbsp;[10] and Remus&nbsp;[9] allow
+resumption of services at a site
+that suffers a power failure by migrating the failed site&rsquo;s
+VMs to a remote site.
+Like these systems, Foundation requires that a user&rsquo;s
+environment be completely contained within a VM,
+but for a different purpose: it allows the &ldquo;resumption&rdquo; of
+state from arbitrarily far in the past.</p><p class=pp><i>Related Work in Storage</i>.
+Hutchinson et al.&nbsp;[19] demonstrated that physical backup
+can sustain higher throughput than logical backup, but noted
+several problems with physical backup.  First,
+since bits are not interpreted as they are backed up, the
+backup is not portable; Foundation provides portability by booting the
+entire image in an emulator.  Second, it is hard to restore
+only a subset of a physical backup; Foundation
+interprets file system structures to provide the
+<code>/snapshot</code> tree, allowing users to recover individual files
+using standard file system tools.  Third, obtaining a consistent
+image is difficult; Foundation implements copy-on-write within
+the VMM to do so, but other tools, such as the Linux&rsquo;s Logical Volume
+Manager (LVM)&nbsp;[25] could be used instead.  Finally, incremental
+backups are hard; addressing blocks by their hashes as in Venti
+solves this problem.</p><p class=pp>The SUNDR secure network file system&nbsp;[26] also uses
+a Venti-like content-addressed storage server
+but uses a different solution than Founation to reduce index seeks.
+SUNDR saves all writes in a temporary disk buffer without deciding whether
+they are duplicate or fresh and then batches both the index searches
+to determine freshness and the index updates for the new data.
+Foundation avoids the temporary data buffer
+by using the Bloom filter to determine freshness quickly, buffering only the
+index entries for new writes, and never the content.</p><p class=pp>Microsoft Single-Instance Store (SIS)&nbsp;[7] identifies and
+collates files with identical contents within a file system, but rather
+than coallescing duplicates on creation, SIS
+instead finds them using a background &ldquo;groveler&rdquo; process.</p><p class=pp>A number of past file systems have provided support for sharing blocks
+between successive file versions using copy-on-write
+(COW)&nbsp;[39,17,31,42].
+These systems capture duplicate blocks between versions of the same file,
+but they fail to identify and coalesce duplicate blocks that enter the
+file system through different paths&mdash;as when a user downloads a file
+twice, for example.  Moreover, they cannot coalesce duplicate data from
+multiple, distinct file systems; a shared archival storage server built
+on such systems would not be as space-efficient as one built on CAS.</p><p class=pp>Peabody&nbsp;[20] implements time travel at the disk
+level, making it possible to travel back in time
+to any instant and get a consistent image.  Chronus&nbsp;[45] used Peabody
+to boot old VMs to find a past configuration error.
+Peabody uses a large in-memory content-addressed buffer cache&nbsp;[21] to
+coalesce duplicate writes.  Because it only looks in the buffer cache,
+it cannot guarantee that all duplicate writes are coalesced.
+In contrast, Foundation is careful to find all duplicate writes.</p><p class=pp>LBFS&nbsp;[30] chooses block boundaries according to blocks&rsquo; contents,
+rather than using a fixed block size, in order to better capture changes
+that shift the alignment of data within a file.  Foundation is agnostic
+as to how block boundaries are chosen and could easily be adapted to do
+the same.</p><p class=pp>Time Machine&nbsp;[40] uses incremental logical
+backup to store multiple versions of a file system.  It creates the
+first backup by logically mirroing the entire file system tree onto a
+remote drive.
+For each subsequent backup, Time Machine
+creates another complete tree on the
+remote drive, but it uses hard links to avoid re-copying unchanged files.
+Unlike Foundation, then, Time Machine cannot efficiently represent
+single-block differences.  Even if a file changes in only one block,
+Time Machine creates a complete new copy on the remote drive.  The
+storage cost of this difference is particularly acute for applications
+such as Microsoft Entourage, which stores a user&rsquo;s complete email
+database as a single file.</p><p class=pp></p><h2 class=sh>7. Future Work</h2>
+<p class=lp>
+</p><p class=pp>The Foundation CAS layer is already a fully functioning system; it has
+been in use as one author&rsquo;s only backup strategy for six months now.  In
+using it on a daily basis, however, we have discovered two interesting
+areas for future work: storage reclamation and fragmentation.</p><p class=pp></p><h2 class=sh>7.1. Storage Reclamation</h2>
+<p class=lp></p><p class=pp>Both the Plan&nbsp;9 experience and our own experience with Venti seem to
+confirm our hypothesis that, in practice, content-addressed storage is
+sufficiently space-efficient that users can retain nightly disk snapshots
+indefinitely.</p><p class=pp>Nonetheless, it is not difficult to imagine usage patterns that would
+quickly exhaust the system&rsquo;s storage.  Consider, for example, a user
+that rips a number of DVDs onto a laptop to watch during a
+long business trip, but shortly afterwards deletes them.
+Because the ripped DVDs were on the laptop for
+several nights, Foundation is likely to have archived them, and they
+will remain in the user&rsquo;s archive.  After a number of such
+trips, the archive disk will fill.</p><p class=pp>One solution to this problem would allow users to selectively
+delete snapshots.  This solution is somewhat risky, in that a careless
+user might delete the only snapshot that is able to interpret a valued
+artifact.  We suspect that users would be even more frustrated,
+however, by having to add disks to a system that was unable to reclaim
+space they felt certain was being wasted.</p><p class=pp>Like Venti, Foundation encodes the metadata describing which blocks make
+up a snapshot as a Merkle tree and stores interior nodes of this tree in
+the CAS layer.  To simplify finding a particular snapshot within the
+log, Foundation also implements a simple <i>system catalog</i> as
+follows.  After writing a snapshot, Foundation writes the root of the
+snapshot&rsquo;s Merkle tree along with the time at which it took the snapshot
+to a file that it then archives in the CAS layer.  It repeats this
+process after writing each subsequent snapshot, appending the new
+snapshot&rsquo;s root and time to the existing list and re-archiving the list.
+The last block in Foundation&rsquo;s log is thus always the root of the latest
+version of the system catalog.</p><p class=pp>Conceptually, deleting a snapshot resembles
+garbage collection in programming languages or log cleaning in LFS.
+First, the CAS
+layer writes a new version of the system catalog that no longer points
+to the snapshot.  Then, the system reclaims the space used by blocks
+that are no longer reachable from any other catalog entry.  A more
+recent snapshot, for example, may still point to some block in the
+deleted snapshot.<sup>4</sup></p><p class=pp>Interestingly, the structure of Foundation&rsquo;s log makes identifying
+unreferenced blocks particularly efficient:
+as a natural result of the log being append-only, all pointers within
+the log point &ldquo;backwards&rdquo;.  Garbage collection can thus proceed in a
+single, sequential pass through the log using an algorithm developed by
+Armstrong and Virding for garbage collecting immutable data structures
+in the Erlang programming language&nbsp;[4].</p><p class=pp>The algorithm works as follows.  Starting at the most recent
+log entry and scanning backwards,
+it maintains a list of &ldquo;live&rdquo; blocks initialized from the
+pointers in the system catalog.  Each time it encounters a live block,
+it deletes that block from its list.  If the block is a metadata block
+that contains pointers to other blocks, it adds these pointers to its
+list.  If the algorithm encounters a block that is not in its list,
+then there are no live pointers to that block later in the log, and
+since all pointers point backwards, the algorithm can reclaim the
+block&rsquo;s space immediately.  The system can also use this algorithm
+incrementally: starting from the end of the log, it can scan backward
+until &ldquo;enough&rdquo; space has been reclaimed, and then stop.</p><p class=pp>The expensive part of the Erlang algorithm is maintaining the list of
+live blocks.  If references to many blocks occur much later in the log
+than the blocks themselves, this list could grow too large to fit in
+memory.  We note, however, that a conservative version of the collector
+could use a Bloom filter to store the list of live blocks.  Although
+false positives in the filter would prevent the algorithm from
+reclaiming some legitimate garbage, its memory usage would be fixed at
+the size of the Bloom filter.</p><p class=pp>Finally, to reclaim the space used by an unreferenced block, Foundation
+can simply rewrite the log arena in which the block occurs without the
+block, using an atomic rename to replace the old arena.  Because this
+rewriting shifts the locations of other blocks in the arena, an extra
+pass is required in compare-by-value mode, where blocks&rsquo; names are their
+locations in the log: the system must scan from the rewritten arena to
+the tail of the log, rewriting pointers to the affected arena as it
+goes.  In compare-by-hash mode, however, blocks&rsquo; names are independent of their
+locations in the log, so no extra pass is required.</p><p class=pp><p class=foot><sup>4</sup> Here Foundation differs from LFS, which
+collects all blocks not pointed to by the most recent version.</p>
+</p><h2 class=sh>7.2. Fragmentation</h2>
+<p class=lp>
+</p><p class=pp>Most of our current work on the Foundation CAS layer has focused on
+reducing the number of seeks within the index.  Having done so, however,
+we have noticed a potential secondary bottleneck: seeks within the data
+log itself.  Consider the case of an archived snapshot made up of
+one block from each of all of the arenas in the log.  Even if no seeks
+were required to determine the location of the snapshot&rsquo;s blocks, reading
+the snapshot would still incur one seek (into the appropriate arena) per
+block.</p><p class=pp>We have come to call this problem <i>fragmentation</i>.  We have not yet
+studied the sources of fragmentation in detail.  In our experience so
+far it is a visible problem, but not a serious one.  We simply see some
+slowdown in reading later versions of disk images as they evolve over
+time.</p><p class=pp>Unfortunately, unlike the seeks within the system&rsquo;s index, seeks due to
+fragmentation cannot be eliminated; they are a fundamental consequence of
+coalescing duplicate writes (the source of Foundation&rsquo;s storage
+efficiency).  We suspect that it also exists in file systems that
+perform copy-on-write snapshots, such as WAFL&nbsp;[17],
+although we have not
+found any reference to it in the literature.</p><p class=pp>We do note that fragmentation can be eliminated in any one snapshot, at
+the expense of others, by copying all of the blocks of that snapshot
+into a contiguous region of the log.  If the system also removes the
+blocks from their original locations, this process resembles the
+&ldquo;defragmentation&rdquo; performed by a copying garbage collector.  We are
+thus considering implementing within Foundation a version of the Erlang
+algorithm discussed above that reclaims space by copying live data,
+rather than deleting dead data, in order to defragment more recently
+archived (and presumably, more frequently accessed) snapshots.</p><p class=pp>One other potential motivation for defragmenting more recent snapshots
+in this manner is that it will likely improve the write throughput of
+compare-by-value mode, since the blocks it compares against while
+writing are unlikely to change their ordering much between snapshots.</p><p class=pp></p><h2 class=sh>8. Conclusion</h2>
+<p class=lp>
+</p><p class=pp>Foundation&rsquo;s approach to preservation&mdash;archiving consistent, nightly
+snapshots of a user&rsquo;s entire hard disk&mdash;is a straight-forward,
+application-independent approach to automatically capturing all of a
+user&rsquo;s digital artifacts and their associated software
+dependencies.  Archiving these snapshots using content-addressed
+storage keeps the system&rsquo;s storage cost proportional to the
+amount of new data users create and eliminates duplicates
+that file-system-based techniques, such as copy-on-write, would miss.
+Using the techniques described in this paper, CAS achieves high
+throughput on remarkably modest hardware&mdash;a single USB hard
+disk&mdash;improving on the read and write throughput achieved by an
+existing, state-of-the-art CAS system on the same hardware by an order
+of magnitude.</p><p class=pp></p><h2 class=sh>9. Acknowledgments</h2>
+<p class=lp></p><p class=pp>This work benefits from useful discussions with
+Eric Brewer, Greg Ganger, David Gay, William Josephson,
+Michael Kaminsky, Jinyang Li, and Petros Maniatis.</p><p class=pp><font size=-1></p><p class=pp><h2 class=sh>Bibliography</h2>
+<p class=bib></p><p class=bib>[1]
+Amazon simple storage service (S3).
+&nbsp; <br><a href="http://www.amazon.com/gp/browse.html?node=16427261"><i>http://www.amazon.com/gp/browse.html?node=16427261</i></a>, 2007.</p><p class=bib>[2]
+VMware virtual machine disk format (VMDK) specification.
+&nbsp; <br><a href="http://www.vmware.com/interfaces/vmdk.html"><i>http://www.vmware.com/interfaces/vmdk.html</i></a>, 2007.</p><p class=bib>[3]
+VMware VIX API.
+&nbsp; <br><a href="http://www.vmware.com/support/developer/vix-api/"><i>http://www.vmware.com/support/developer/vix-api/</i></a>, 2007.</p><p class=bib>[4]
+J.&nbsp;Armstrong and R.&nbsp;Virding.
+&nbsp; One pass real-time generational mark-sweep garbage collection.
+&nbsp; In <i>Intl. Workshop on Memory Management</i>, 1995.</p><p class=bib>[5]
+J.&nbsp;Black.
+&nbsp; Compare-by-hash: A reasoned analysis.
+&nbsp; In <i>USENIX Annual Tech.&nbsp;Conf.</i>, 2006.</p><p class=bib>[6]
+B.&nbsp;H. Bloom.
+&nbsp; Space/time trade-offs in hash coding with allowable errors.
+&nbsp; <i>Commun. ACM</i>, 13(7):422&ndash;426, 1970.</p><p class=bib>[7]
+W.&nbsp;Bolosky, S.&nbsp;Corbin, D.&nbsp;Goebel, and J.&nbsp;Douceur.
+&nbsp; Single instance storage in Windows 2000.
+&nbsp; In <i>4th USENIX Windows Symp.</i>, 2000.</p><p class=bib>[8]
+R.&nbsp;Chen.
+&nbsp; Getting out of DLL Hell.
+&nbsp; <i>Microsoft TechNet</i>, Jan. 2007.</p><p class=bib>[9]
+B.&nbsp;Cully et&nbsp;al.
+&nbsp; Remus: High availability via asynchronous virtual machine
+replication.
+&nbsp; In <i>NSDI</i>, 2008.</p><p class=bib>[10]
+B.&nbsp;Cully and A.&nbsp;Warfield.
+&nbsp; SecondSite: disaster protection for the common server.
+&nbsp; In <i>HotDep</i>, 2006.</p><p class=bib>[11]
+M.&nbsp;Dworkin.
+&nbsp; Recommendation for block cipher modes of operation: Methods and
+techniques.
+&nbsp; <i>NIST Special Publication 800-38A</i>, Dec. 2001.</p><p class=bib>[12]
+P.&nbsp;Festa.
+&nbsp; A life in bits and bytes (inteview with Gordon Bell).
+&nbsp; http://news.com.com/2008-1082-979144.html, Jan. 2003.</p><p class=bib>[13]
+B.&nbsp;Ford.
+&nbsp; VXA: A virtual architecture for durable compressed archives.
+&nbsp; In <i>FAST</i>, 2005.</p><p class=bib>[14]
+J.&nbsp;Gemmell, G.&nbsp;Bell, and R.&nbsp;Lueder.
+&nbsp; MyLifeBits: a personal database for everything.
+&nbsp; <i>CACM</i>, 49(1):88&ndash;95, Jan. 2006.</p><p class=bib>[15]
+S.&nbsp;Granger.
+&nbsp; Emulation as a digital preservation strategy.
+&nbsp; <i>D-Lib Magazine</i>, 6(10), Oct. 2000.</p><p class=bib>[16]
+V.&nbsp;Henson.
+&nbsp; An analysis of compare-by-hash.
+&nbsp; In <i>HotOS</i>, 2003.</p><p class=bib>[17]
+D.&nbsp;Hitz, J.&nbsp;Lau, and M.&nbsp;Malcolm.
+&nbsp; File system design for an NFS file server appliance.
+&nbsp; In <i>USENIX Winter Conf.</i>, 1994.</p><p class=bib>[18]
+J.&nbsp;Hollingsworth and E.&nbsp;Miller.
+&nbsp; Using content-derived names for configuration management.
+&nbsp; In <i>ACM SIGSOFT Symposium on Software Reusability</i>, 1997.</p><p class=bib>[19]
+N.&nbsp;Hutchinson et&nbsp;al.
+&nbsp; Logical vs. physical file system backup.
+&nbsp; In <i>OSDI</i>, 1999.</p><p class=bib>[20]
+C.&nbsp;B.&nbsp;M. III and D.&nbsp;Grunwald.
+&nbsp; Peabody: The time travelling disk.
+&nbsp; In <i>MSST</i>, 2003.</p><p class=bib>[21]
+C.&nbsp;B.&nbsp;M. III and D.&nbsp;Grunwald.
+&nbsp; Content based block caching.
+&nbsp; In <i>MSST</i>, 2006.</p><p class=bib>[22]
+M.&nbsp;Kozuch and M.&nbsp;Satyanarayanan.
+&nbsp; Internet Suspend/Resume.
+&nbsp; In <i>WMCSA</i>, 2002.</p><p class=bib>[23]
+T.&nbsp;Kuny.
+&nbsp; A digital dark ages? Challenges in the preservation of electronic
+information.
+&nbsp; In <i>63rd IFLA General Conference</i>, 1997.</p><p class=bib>[24]
+K.-H. Lee, O.&nbsp;Slattery, R.&nbsp;Lu, X.&nbsp;Tang, and V.&nbsp;McCrary.
+&nbsp; The state of the art and practice in digital preservation.
+&nbsp; <i>Journal of Research of the NIST</i>, 107(1):93&ndash;106, Jan&ndash;Feb 2002.</p><p class=bib>[25]
+A.&nbsp;Lewis.
+&nbsp; LVM HOWTO.
+&nbsp; <br><a href="http://tldp.org/HOWTO/LVM-HOWTO/"><i>http://tldp.org/HOWTO/LVM-HOWTO/</i></a>, 2006.</p><p class=bib>[26]
+J.&nbsp;Li, M.&nbsp;Krohn, D.&nbsp;Mazieres, and D.&nbsp;Shasha.
+&nbsp; Secure untrusted data repository (SUNDR).
+&nbsp; In <i>OSDI</i>, 2004.</p><p class=bib>[27]
+R.&nbsp;Lorie.
+&nbsp; A methodology and system for preserving digital data.
+&nbsp; In <i>ACM/IEEE Joint Conf.&nbsp;on Digital Libraries</i>, 2002.</p><p class=bib>[28]
+C.&nbsp;Marshall, F.&nbsp;McCown, and M.&nbsp;Nelson.
+&nbsp; Evaluating personal archiving strategies for Internet-based
+information.
+&nbsp; In <i>IS&#38;T Archiving</i>, 2006.</p><p class=bib>[29]
+R.&nbsp;Merkle.
+&nbsp; A digital signature based on a conventional encryption function.
+&nbsp; In <i>CRYPTO</i>, 1988.</p><p class=bib>[30]
+A.&nbsp;Muthitacharoen, B.&nbsp;Chen, and D.&nbsp;Mazi&#232;res.
+&nbsp; A low-bandwidth network file system.
+&nbsp; In <i>SOSP</i>, Oct. 2001.</p><p class=bib>[31]
+OpenSolaris.
+&nbsp; What is ZFS?
+&nbsp; <br><a href="http://opensolaris.org/os/community/zfs/whatis/"><i>http://opensolaris.org/os/community/zfs/whatis/</i></a>, 2007.</p><p class=bib>[32]
+R.&nbsp;Pike et&nbsp;al.
+&nbsp; Plan 9 from Bell Labs.
+&nbsp; <i>Computing Systems</i>, 8(3):221&ndash;254, Summer 1995.</p><p class=bib>[33]
+S.&nbsp;Quinlan.
+&nbsp; A cached WORM file system.
+&nbsp; <i>Software&mdash;Practice and Experience</i>, 21(12):1289&ndash;1299, 1991.</p><p class=bib>[34]
+S.&nbsp;Quinlan and S.&nbsp;Dorward.
+&nbsp; Venti: a new approach to archival storage.
+&nbsp; In <i>FAST</i>, 2002.</p><p class=bib>[35]
+T.&nbsp;Reichherzer and G.&nbsp;Brown.
+&nbsp; Quantifying software requirements for supporting archived office
+documents using emulation.
+&nbsp; In <i>ICDL</i>, 2006.</p><p class=bib>[36]
+M.&nbsp;Rosenblum and J.&nbsp;K. Ousterhout.
+&nbsp; The design and implementation of a log-structured file system.
+&nbsp; <i>ACM Trans. Comput. Syst.</i>, 10(1):26&ndash;52, 1992.</p><p class=bib>[37]
+D.&nbsp;Rosenthal, T.&nbsp;Lipkis, T.&nbsp;Robertson, and S.&nbsp;Morabito.
+&nbsp; Transparent format migration of preserved web content.
+&nbsp; <i>D-Lib Magazine</i>, 11(1), Jan. 2005.</p><p class=bib>[38]
+J.&nbsp;Rothenberg.
+&nbsp; Ensuring the longevity of digital documents.
+&nbsp; <i>Scientific American</i>, 272(1):42&ndash;47, Jan. 1995.</p><p class=bib>[39]
+D.&nbsp;Santry et&nbsp;al.
+&nbsp; Deciding when to forget in the Elephant file system.
+&nbsp; In <i>SOSP</i>, 1999.</p><p class=bib>[40]
+J.&nbsp;Siracusa.
+&nbsp; Mac OS X 10.5 Leopard: the Ars Technica review.
+&nbsp; <br><a href="http://arstechnica.com/reviews/os/mac-os-x-10-5.ars/14"><i>http://arstechnica.com/reviews/os/mac-os-x-10-5.ars/14</i></a>, 2007.</p><p class=bib>[41]
+M.&nbsp;Smith.
+&nbsp; Eternal bits.
+&nbsp; <i>IEEE Spectrum</i>, 42(7):22&ndash;27, July 2005.</p><p class=bib>[42]
+C.&nbsp;Soules, G.&nbsp;Goodson, J.&nbsp;Strunk, and G.&nbsp;Ganger.
+&nbsp; Metadata efficiency in versioning file systems.
+&nbsp; In <i>FAST</i>, 2003.</p><p class=bib>[43]
+S.&nbsp;Tang, Y.&nbsp;Chen, and Z.&nbsp;Zhang.
+&nbsp; Machine Bank: Own your virtual personal computer.
+&nbsp; In <i>IPDPS</i>, 2007.</p><p class=bib>[44]
+A.&nbsp;van Hoff, J.&nbsp;Giannandrea, M.&nbsp;Hapner, S.&nbsp;Carter, and M.&nbsp;Medin.
+&nbsp; The HTTP distribution and replication protocol.
+&nbsp; Technical Report NOTE-drp-19970825, W3C, 1997.</p><p class=bib>[45]
+A.&nbsp;Whitaker, R.&nbsp;S. Cox, and S.&nbsp;D. Gribble.
+&nbsp; Configuration debugging as search: finding the needle in the
+haystack.
+&nbsp; In <i>OSDI</i>, 2004.</p><p class=bib></p></p><p class=bib></font></p><p class=bib></body>
+</html>
