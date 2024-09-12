@@ -4,12 +4,11 @@
 #include <string>
 
 namespace pyc {
-	class Tag {
+	class TagType {
 	public:
-		enum TagTypes {
-			// Variable and literals 
+		enum TagTypeEnum {
+			// Names and literals 
 			ID = 0,	// variables
-			INIT,	// =
 			INTEGER,
 			REAL,
 			STRL,	// strings lieterals
@@ -18,12 +17,13 @@ namespace pyc {
 			FALSE,
 			
 			// Arithmetic Operations
-			ADD,
-			SUB,
-			MUL,
-			DIV,
-			MOD,
-			POW,
+			INIT,	// =
+			ADD,	// +
+			SUB,	// -
+			MUL,	// *
+			DIV,	// /
+			MOD,	// %
+			POW,	// **
 
 
 			// Basic Logical Operations
@@ -32,6 +32,7 @@ namespace pyc {
 			LT,	// <
 			LE,	// <=
 			EQ,	// ==
+			NEQ, 	// !=
 
 			// Boolean Operations
 			AND,
@@ -47,8 +48,10 @@ namespace pyc {
 			BREAK,
 			CONTINUE,
 			DEF,	// functions
+			IDENT,	// Python identation ":"
 			
 			// -------------------------------
+			UNKNOWN,
 			TAG_COUNT  // Total number of tags
 		};
 		

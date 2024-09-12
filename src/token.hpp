@@ -4,6 +4,8 @@
 #include <ostream>
 #include <cstdint>
 
+#include "tag.hpp"
+
 namespace pyc {
 	class TokenType {
 	public:
@@ -25,6 +27,8 @@ namespace pyc {
 		
 	public:
 		Token(uint8_t type, uint8_t tag);
+		Token(void);
+		virtual ~Token() = default;
 		
 		uint8_t get_type() const;
 		uint8_t get_tag() const;
@@ -36,7 +40,9 @@ namespace pyc {
 			   << ", " << token.get_tag_str() << ">";
 			return os;
 		}
-		
+
+		// A few tokens that are going to exist in the whole program
+		static Token init, add, sub, mul, div, mod, pow, ident, unknown;
 	};
 }
 

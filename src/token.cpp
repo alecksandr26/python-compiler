@@ -11,6 +11,11 @@ pyc::Token::Token(uint8_t type, uint8_t tag)
 	tag_ = tag;
 }
 
+pyc::Token::Token(void)
+{
+	type_ = TokenType::UNKNOWN;
+	tag_ = TagType::UNKNOWN;
+}
 
 uint8_t pyc::Token::get_type() const
 {
@@ -24,7 +29,7 @@ uint8_t pyc::Token::get_tag() const
 
 const std::string &pyc::Token::get_tag_str() const
 {
-	return Tag::tag_types_str[tag_];
+	return TagType::tag_types_str[tag_];
 }
 
 const std::string pyc::TokenType::token_types_str[] = {
@@ -35,5 +40,17 @@ const std::string pyc::TokenType::token_types_str[] = {
 	"OPERATOR",
 	"UNKNOWN"
 };
+
+Token pyc::Token::init(TokenType::OPERATOR, TagType::INIT);
+Token pyc::Token::add(TokenType::OPERATOR, TagType::ADD);
+Token pyc::Token::sub(TokenType::OPERATOR, TagType::SUB);
+Token pyc::Token::mul(TokenType::OPERATOR, TagType::MUL);
+Token pyc::Token::div(TokenType::OPERATOR, TagType::DIV);
+Token pyc::Token::mod(TokenType::OPERATOR, TagType::MOD);
+Token pyc::Token::pow(TokenType::OPERATOR, TagType::POW);
+
+Token pyc::Token::ident(TokenType::KEYWORD, TagType::IDENT);
+Token pyc::Token::unknown(TokenType::UNKNOWN, TagType::UNKNOWN);
+
 
 
