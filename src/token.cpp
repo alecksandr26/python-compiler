@@ -49,7 +49,8 @@ Token pyc::Token::div(TokenType::OPERATOR, TagType::DIV);
 Token pyc::Token::mod(TokenType::OPERATOR, TagType::MOD);
 Token pyc::Token::pow(TokenType::OPERATOR, TagType::POW);
 
-Token pyc::Token::ident(TokenType::KEYWORD, TagType::IDENT);
+// TODO: Probably we would need another category for this one
+Token pyc::Token::ident(TokenType::OPERATOR, TagType::IDENT);
 Token pyc::Token::unknown(TokenType::UNKNOWN, TagType::UNKNOWN);
 
 

@@ -184,7 +184,7 @@ const Token &pyc::Lexer::next_token(void)
 	}
 
 	if (std::isalpha(peek_)) {
-		std::string name = "";
+		std::string name("");
 		do {
 			name.append(&peek_);
 			readch();

@@ -9,6 +9,10 @@ pyc::Word::Word(const std::string &lexeme, const Token &token)
 	
 }
 
+pyc::Word::Word(void) : Token()
+{
+	lexeme_ = "";
+}
 
 Word pyc::Word::eq("==", Token(TokenType::OPERATOR, TagType::EQ));
 Word pyc::Word::ne("!=", Token(TokenType::OPERATOR, TagType::NEQ));

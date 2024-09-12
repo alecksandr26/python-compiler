@@ -28,7 +28,7 @@ namespace pyc {
 	public:
 		Token(uint8_t type, uint8_t tag);
 		Token(void);
-		virtual ~Token() = default;
+		virtual ~Token(void) = default;
 		
 		uint8_t get_type() const;
 		uint8_t get_tag() const;

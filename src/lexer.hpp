@@ -5,13 +5,15 @@
 #include <map>
 #include <vector>
 
+
 #include "token.hpp"
+#include "word.hpp"
 
 namespace pyc {
 	class Lexer {
 	private:
 		std::ifstream &source_;
-		std::map<std::string, Token> keywords_;
+		std::map<std::string, Word> keywords_;
 		std::vector<const Token *> token_seq_;
 		char peek_;
 		int line_;

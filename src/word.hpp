@@ -13,6 +13,8 @@ namespace pyc {
 		
 	public:
 		Word(const std::string &lexeme, const Token &token);
+		Word(void);
+		virtual ~Word(void) = default;
 
 		friend std::ostream &operator<<(std::ostream &os, const Word &word)
 		{

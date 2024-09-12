@@ -14,22 +14,22 @@ const std::string pyc::TagType::tag_types_str[TAG_COUNT] = {
 	"FALSE",
 
 	// Arithmetic Operations
-	"INIT",
-	"ADD",
-	"SUB",
-	"MUL",
-	"DIV",
-	"MOD",
-	"POW",
+	"\"=\"",		// INIT
+	"\"+\"",		// ADD
+	"\"-\"",		// SUB
+	"\"*\"",		// MUL
+	"\"/\"",		// DIV
+	"\"%\"",		// MOD
+	"\"**\"",		// POW
 
 	// Basic Logical Operations
-	"GT",
-	"GE",
-	"LT",
-	"LE",
-	"EQ",
-	"NEQ",
-
+	"\">\"",		// GT
+	"\">=\"",		// GE
+	"\"<\"",		// LT
+	"\"<=\"",		// LE
+	"\"==\"",		// EQ
+	"\"!=\"",		// !=
+	
 	
 	// Boolean Operations
 	"AND",
@@ -46,8 +46,7 @@ const std::string pyc::TagType::tag_types_str[TAG_COUNT] = {
 	"BREAK",
 	"CONTINUE",
 	"DEF",
-	"IDENT",
-
+	"\":\"",		// IDENT
 	
 	"UKNOWN",
 };
