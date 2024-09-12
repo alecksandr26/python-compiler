@@ -40,7 +40,6 @@ pyc::Lexer::Lexer(std::ifstream &source) : source_(source)
 	peek_ = ' ';
 }
 
-
 void pyc::Lexer::readch(void)
 {
 	source_.get(peek_);

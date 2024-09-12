@@ -2,8 +2,6 @@
 #include <fstream>
 #include <cassert>
 
-#include <fcntl.h>    // for open()
-#include <unistd.h>   // for read()
 
 #include "tag.hpp"
 #include "word.hpp"
@@ -16,6 +14,7 @@ using namespace pyc;
 int main(void)
 {
 	std::ifstream source("./test.py");
+
 
 
 	if (!source.is_open()) {

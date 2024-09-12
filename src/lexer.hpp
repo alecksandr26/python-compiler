@@ -16,7 +16,7 @@ namespace pyc {
 		std::map<std::string, Word> keywords_;
 		std::vector<const Token *> token_seq_;
 		char peek_;
-		int line_;
+		int line_, fd_;
 		
 		void readch(void);
 		bool expectch(char ch);
@@ -24,6 +24,7 @@ namespace pyc {
 		
 	public:
 		Lexer(std::ifstream &source);
+		Lexer(int fd);
 		bool is_token_available(void);
 		const Token &next_token(void);
 		
