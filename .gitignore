@@ -41,5 +41,5 @@
 
 
 build/**
-main
-*.out
+./main
+./*.out
