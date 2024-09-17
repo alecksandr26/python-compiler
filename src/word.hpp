@@ -5,12 +5,14 @@
 #include <string>
 #include "token.hpp"
 
-namespace pyc {
-	
-	class Word : public Token {
+namespace pyc
+{
+
+	class Word : public Token
+	{
 	private:
 		std::string lexeme_;
-		
+
 	public:
 		Word(const std::string &lexeme, const Token &token);
 		Word(void);
@@ -22,11 +24,9 @@ namespace pyc {
 			   << ", \"" << word.lexeme_ << "\">";
 			return os;
 		}
-		
+
 		static Word eq, ne, gt, ge, lt, le;
 	};
 }
 
 #endif
-
-

@@ -29,10 +29,12 @@ int main(void)
 
 		switch (token.get_type()) {
 		case TokenType::IDENTIFIER:
-		case TokenType::KEYWORD: {
-			const Word &word = static_cast<const Word&>(token);
-			std::cout << word << std::endl;
-		}
+        case TokenType::KEYWORD:
+        case TokenType::STRING: {  // Added case for strings
+            const Word &word = static_cast<const Word&>(token);
+            std::cout << word << std::endl;
+            break;
+        }
 			break;
 
 		case TokenType::NUMBER: {
