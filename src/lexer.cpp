@@ -10,6 +10,7 @@
 #include "tag.hpp"
 #include "token.hpp"
 #include "word.hpp"
+#include "lexer_error.hpp" 
 
 using namespace pyc;
 
@@ -19,7 +20,7 @@ pyc::Lexer::Lexer(std::ifstream &source) : source_(source)
   {
     std::cerr << "Error the file is not opened" << std::endl;
     // TODO: Create exception
-    assert(0);
+    throw LexerError("The file could not be opened");
   }
 
   // Reserve keywords
@@ -90,8 +91,7 @@ const Token &pyc::Lexer::next_token(void)
   // Try to finds something otherwise throws an error
   if (!reads_until_finds_something())
   {
-    std::cerr << "Error there isn't other token" << std::endl;
-    assert(0);
+    throw LexerError("Error there isn't other token");
   }
 
   // Simple lexemes
@@ -113,9 +113,8 @@ const Token &pyc::Lexer::next_token(void)
       return *token_seq_.back();
     }
 
-    std::cerr << "Error Uknown token" << std::endl;
     // TODO: Create exception
-    assert(0);
+    throw LexerError("Error Uknown token ");
   case '>':
     if (expectch('='))
     {
@@ -226,9 +225,8 @@ const Token &pyc::Lexer::next_token(void)
         readch();
       }
 
-      // If we reached EOF without finding the closing triple quote, throw an error
-      std::cerr << "Error: Unterminated multi-line string literal" << std::endl;
-      assert(0);
+      
+      throw LexerError("Error: Unterminated multi-line string literal");
     }
 
     // Handle single-line string literals
@@ -275,8 +273,7 @@ const Token &pyc::Lexer::next_token(void)
     else
     {
       // Handle unterminated single-line string literal
-      std::cerr << "Error: Unterminated string literal" << std::endl;
-      assert(0);
+      throw LexerError("Error: Unterminated string literal");
     }
 
     return *token_seq_.back();
