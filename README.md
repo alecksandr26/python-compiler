@@ -1,4 +1,4 @@
-# Python Compiler
+# Python Compiler (PYC)
 
 This project is dedicated to building a fast and efficient Python compiler, designed to enhance the developer experience and deliver better performance in Python code execution. By leveraging advanced lexical analysis and tokenization techniques, this compiler provides a streamlined parsing mechanism while adhering to Python's syntax and style conventions, including support for lists, tuples, and variable naming in compliance with PEP 8.
 
