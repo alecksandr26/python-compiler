@@ -10,12 +10,12 @@ namespace pyc {
 	class TokenType {
 	public:
 		enum TokenTypeEnum {
-			KEYWORD = 0,
-			IDENTIFIER,
-			NUMBER,
-			STRING,
-			OPERATOR,
-			UNKNOWN
+			KEYWORD = 0, // Keywords like 'if', 'else', etc.
+			IDENTIFIER, // Variable names, function names, etc.
+			NUMBER, // Numeric literals like 123, 3.14
+			STRING, // String literals like "hello"
+			OPERATOR, // Operators like +, -, *, /
+			UNKNOWN  // For any token that doesn't match known types
 		};
 		
 		static const std::string token_types_str[];
