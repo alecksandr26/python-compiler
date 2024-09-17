@@ -10,12 +10,13 @@ namespace pyc {
 	class TokenType {
 	public:
 		enum TokenTypeEnum {
-			KEYWORD = 0, // Keywords like 'if', 'else', etc.
-			IDENTIFIER, // Variable names, function names, etc.
-			NUMBER, // Numeric literals like 123, 3.14
-			STRING, // String literals like "hello"
-			OPERATOR, // Operators like +, -, *, /
-			UNKNOWN  // For any token that doesn't match known types
+			KEYWORD = 0,   // Keywords like 'if', 'else', etc.
+			IDENTIFIER,    // Variable names, function names, etc.
+			NUMBER,        // Numeric literals like 123, 3.14
+			STRING,        // String literals like "hello"
+			OPERATOR,      // Operators like +, -, *, /
+			DELIMITER,     // List and tuple delimiters like [], (), ,
+			UNKNOWN        // For any token that doesn't match known types
 		};
 		
 		static const std::string token_types_str[];
@@ -33,7 +34,8 @@ namespace pyc {
 		uint8_t get_type() const;
 		uint8_t get_tag() const;
 		const std::string &get_tag_str() const;
-		
+
+		// Operator to print token details
 		friend std::ostream &operator<<(std::ostream &os, const Token &token)
 		{
 			os << "Token<" << TokenType::token_types_str[token.get_type()]
@@ -41,10 +43,10 @@ namespace pyc {
 			return os;
 		}
 
-		// A few tokens that are going to exist in the whole program
-		static Token init, add, sub, mul, div, mod, pow, ident, unknown;
+		// Static tokens to represent common operators, delimiters, and unknown token
+		static Token init, add, sub, mul, div, mod, pow, ident;
+		static Token lbracket, rbracket, lparen, rparen, comma, unknown;  // Add comma token
 	};
 }
 
 #endif
-

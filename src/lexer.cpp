@@ -174,6 +174,31 @@ const Token &pyc::Lexer::next_token(void)
     // next valid token
     return next_token();
   }
+    // Handle list delimiters (square brackets)
+  case '[':
+    peek_ = ' ';
+    token_seq_.push_back(&Token::lbracket); // lbracket represents `[`
+    return *token_seq_.back();
+  case ']':
+    peek_ = ' ';
+    token_seq_.push_back(&Token::rbracket); // rbracket represents `]`
+    return *token_seq_.back();
+
+  // Handle tuple delimiters (parentheses)
+  case '(':
+    peek_ = ' ';
+    token_seq_.push_back(&Token::lparen); // lparen represents `(`
+    return *token_seq_.back();
+  case ')':
+    peek_ = ' ';
+    token_seq_.push_back(&Token::rparen); // rparen represents `)`
+    return *token_seq_.back();
+
+  // Handle comma delimiters
+  case ',':
+    peek_ = ' ';
+    token_seq_.push_back(&Token::comma); // comma represents `,`
+    return *token_seq_.back();
 
   case '"':
   case '\'':
@@ -256,7 +281,6 @@ const Token &pyc::Lexer::next_token(void)
 
     return *token_seq_.back();
   }
-  
   }
 
   if (std::isdigit(peek_))
@@ -291,22 +315,29 @@ const Token &pyc::Lexer::next_token(void)
     return *token_seq_.back();
   }
 
-  if (std::isalpha(peek_))
+  if (std::isalpha(peek_) || peek_ == '_') // Variable names must start with a letter (upper/lower) or underscore
   {
     std::string name("");
-    do
-    {
-      name.append(&peek_);
-      readch();
-    } while (std::isalpha(peek_) or std::isdigit(peek_));
 
-    // Check if it is a key word return it
-    // otherwise creates a new token name and return it
+    // Append the first valid character (a letter or underscore)
+    name.append(1, peek_);
+    readch();
+
+    // Continue reading while characters are letters (upper/lower), digits, or underscores
+    while (std::isalnum(peek_) || peek_ == '_') // Allow letters, digits, and underscores after the first character
+    {
+      name.append(1, peek_);
+      readch();
+    }
+
+    // Check if the name is a keyword; if not, treat it as an identifier
     if (!keywords_.count(name))
     {
+      // Create a Word object for the identifier
       Word word = Word(name, Token(TokenType::IDENTIFIER, TagType::ID));
       keywords_.insert(std::make_pair(name, word));
     }
+
     token_seq_.push_back(&keywords_[name]);
     return *token_seq_.back();
   }

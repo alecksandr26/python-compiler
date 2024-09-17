@@ -38,9 +38,11 @@ const std::string pyc::TokenType::token_types_str[] = {
 	"NUMBER",
 	"STRING",
 	"OPERATOR",
+	"DELIMITER",
 	"UNKNOWN"
 };
 
+// Initialization of static tokens
 Token pyc::Token::init(TokenType::OPERATOR, TagType::INIT);
 Token pyc::Token::add(TokenType::OPERATOR, TagType::ADD);
 Token pyc::Token::sub(TokenType::OPERATOR, TagType::SUB);
@@ -49,9 +51,15 @@ Token pyc::Token::div(TokenType::OPERATOR, TagType::DIV);
 Token pyc::Token::mod(TokenType::OPERATOR, TagType::MOD);
 Token pyc::Token::pow(TokenType::OPERATOR, TagType::POW);
 
-// TODO: Probably we would need another category for this one
+// Tokens for list and tuple delimiters (added for Python lists and tuples)
+Token pyc::Token::lbracket(TokenType::DELIMITER, TagType::LBRACKET);
+Token pyc::Token::rbracket(TokenType::DELIMITER, TagType::RBRACKET);
+Token pyc::Token::lparen(TokenType::DELIMITER, TagType::LPAREN);
+Token pyc::Token::rparen(TokenType::DELIMITER, TagType::RPAREN);
+
+// Token for comma
+Token pyc::Token::comma(TokenType::DELIMITER, TagType::COMMA);  // Add initialization for the comma token
+
+// Token for identifiers and unknown types
 Token pyc::Token::ident(TokenType::OPERATOR, TagType::IDENT);
 Token pyc::Token::unknown(TokenType::UNKNOWN, TagType::UNKNOWN);
-
-
-

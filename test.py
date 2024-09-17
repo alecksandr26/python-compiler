@@ -3,8 +3,10 @@
 num = 1
 x = 3.25342
 # Hola
-stringvar = "hola"
-stringtwo = """hola soy string 2"""
+string_var = "hola"
+string_two = """hola soy string 2"""
+lst_nums = [1,2,3]
+lst_strings = ["objeto_1", "objeto_2"]
 if num == 1:
     x = 12353 * 2
 

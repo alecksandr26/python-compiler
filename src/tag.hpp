@@ -11,7 +11,7 @@ namespace pyc {
 			ID = 0,	// variables
 			INTEGER,
 			REAL,
-			STRL,	// strings lieterals
+			STRL,	// strings literals
 			INDEX,
 			TRUE,
 			FALSE,
@@ -24,7 +24,6 @@ namespace pyc {
 			DIV,	// /
 			MOD,	// %
 			POW,	// **
-
 
 			// Basic Logical Operations
 			GT,	// >
@@ -48,8 +47,15 @@ namespace pyc {
 			BREAK,
 			CONTINUE,
 			DEF,	// functions
-			IDENT,	// Python identation ":"
-			
+			IDENT,	// Python indentation ":"
+
+			// Delimiters
+			LBRACKET,  // [
+			RBRACKET,  // ]
+			LPAREN,    // (
+			RPAREN,    // )
+			COMMA,     // ,
+
 			// -------------------------------
 			UNKNOWN,
 			TAG_COUNT  // Total number of tags
@@ -60,8 +66,3 @@ namespace pyc {
 }
 
 #endif
-
-
-
-
-
