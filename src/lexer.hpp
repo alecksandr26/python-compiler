@@ -12,7 +12,7 @@
 namespace pyc {
 	class Lexer {
 	private:
-		std::ifstream &source_;
+		std::istream &source_;
 		std::map<std::string, Word> keywords_;
 		std::vector<const Token *> token_seq_;
 		char peek_;
@@ -23,7 +23,7 @@ namespace pyc {
 		bool reads_until_finds_something(void);
 		
 	public:
-		Lexer(std::ifstream &source);
+		Lexer(std::istream &source);
 		Lexer(int fd);
 		bool is_token_available(void);
 		const Token &next_token(void);
