@@ -8,20 +8,26 @@ set(MAIN main)
 # **Find Qt5 components**
 find_package(Qt5 COMPONENTS Widgets Core REQUIRED)
 
-# **Include Qt5 directories**
-include_directories(${Qt5Widgets_INCLUDE_DIRS})
 
 # **Enable Qt-specific features**
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-# **Add the main executable**
-add_executable(${MAIN}
-  main.cpp
+# TODO: We need to define constant variables to name all the executables etc
+
+# Define binaries for the project
+add_executable(gui_app.out
+  ${EXAMPLE_DIR}/gui_app.cpp
 )
 
-# **Link the main executable with pyc library and Qt5Widgets**
-target_link_libraries(${MAIN}
-  PRIVATE pyc Qt5::Widgets Qt5::Core
+# Link the QtApp executable to the Qt5 libraries and the pyc library
+target_link_libraries(gui_app.out
+  PRIVATE pycgui Qt5::Widgets Qt5::Core
 )
+
+target_include_directories(gui_app.out
+  PRIVATE ${SRC_DIR} ${Qt5Widgets_INCLUDE_DIRS}
+)
+
+set_target_properties(gui_app.out PROPERTIES AUTOMOC ON)

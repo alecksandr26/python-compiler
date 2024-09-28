@@ -42,7 +42,10 @@ pyc::Lexer::Lexer(std::istream &source) : source_(source)
 	peek_ = ' ';
 }
 
-void pyc::Lexer::readch(void) { source_.get(peek_); }
+void pyc::Lexer::readch(void)
+{
+	source_.get(peek_);
+}
 
 bool pyc::Lexer::expectch(char ch)
 {
@@ -258,6 +261,8 @@ const Token &pyc::Lexer::next_token(void)
 		do {
 			ivalue = 10 * ivalue + (peek_ - '0');
 			readch();
+			if (source_.eof())
+				break;
 		} while (std::isdigit(peek_));
 
 		if (peek_ != '.') {
@@ -269,7 +274,7 @@ const Token &pyc::Lexer::next_token(void)
 		double fvalue = static_cast<double>(ivalue), d = 10.0;
 		for (;;) {
 			readch();
-			if (!std::isdigit(peek_))
+			if (!std::isdigit(peek_) or source_.eof())
 				break;
 			fvalue = fvalue + (peek_ - '0') / d;
 			d *= 10.0;
