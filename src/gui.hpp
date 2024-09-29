@@ -7,7 +7,9 @@
 
 
 // Just for the checkers
+#ifndef slots
 #define slots
+#endif
 
 // Define the space of the gui
 namespace pycgui {
