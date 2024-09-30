@@ -3,6 +3,8 @@
 #include <fstream>
 #include <iostream>
 #include <map>
+#include <stdexcept>
+#include <string>
 
 #include "integer.hpp"
 #include "lexer.hpp"
@@ -10,19 +12,35 @@
 #include "tag.hpp"
 #include "token.hpp"
 #include "word.hpp"
-#include "lexer_error.hpp" 
+
+// The errors messages
+#define ERROR_UNKNOW_TOKEN_MSG "Unknow token"
+#define ERROR_NO_NEXT_TOKEN "There isn't exist a next token"
+#define ERROR_IN_STREAM_NOT_OPENED "The in stream is not opened or can't opened"
+#define ERROR_UNTERMINATED_STRING_MUL_LIT "Unterminated multi-line string literal"
+#define ERROR_UNTERMINATED_STRING_LIT "Unterminated string literal"
 
 using namespace pyc;
+
+// To hanlde runtime errors in the compiler
+class LexerError : public std::runtime_error {
+public:
+	// Constructor that takes a message and passes it to std::runtime_error
+	explicit LexerError(const std::string& message);
+};
+
+
+LexerError::LexerError(const std::string& message) : std::runtime_error("[LEXER ERROR]: " + message)
+{
+	
+}
+
 
 pyc::Lexer::Lexer(std::istream &source) : source_(source)
 {
 	if (!source_)
-		{
-			std::cerr << "Error the file is not opened" << std::endl;
-			// TODO: Create exception
-			throw LexerError("The file could not be opened");
-		}
-
+		throw LexerError(ERROR_IN_STREAM_NOT_OPENED);
+	
 	// Reserve keywords
 
 	// Structure keywords
@@ -42,7 +60,10 @@ pyc::Lexer::Lexer(std::istream &source) : source_(source)
 	peek_ = ' ';
 }
 
-void pyc::Lexer::readch(void) { source_.get(peek_); }
+void pyc::Lexer::readch(void)
+{
+	source_.get(peek_);
+}
 
 bool pyc::Lexer::expectch(char ch)
 {
@@ -52,7 +73,6 @@ bool pyc::Lexer::expectch(char ch)
 		return false;
 	}
 
-	peek_ = ' ';
 	return true;
 }
 
@@ -78,9 +98,8 @@ bool pyc::Lexer::is_token_available(void)
 const Token &pyc::Lexer::next_token(void)
 {
 	// Try to finds something otherwise throws an error
-	if (!reads_until_finds_something()) {
-		throw LexerError("Error there isn't other token");
-	}
+	if (!reads_until_finds_something())
+		throw LexerError(ERROR_NO_NEXT_TOKEN);
 
 	// Simple lexemes
 	switch (peek_) {
@@ -97,9 +116,8 @@ const Token &pyc::Lexer::next_token(void)
 			token_seq_.push_back(&Word::ne);
 			return *token_seq_.back();
 		}
-
-		// TODO: Create exception
-		throw LexerError("Error Uknown token ");
+		
+		throw LexerError(ERROR_UNKNOW_TOKEN_MSG);
 	case '>':
 		if (expectch('=')) {
 			token_seq_.push_back(&Word::ge);
@@ -120,7 +138,8 @@ const Token &pyc::Lexer::next_token(void)
 		return *token_seq_.back();
 	case '-':
 		peek_ = ' ';
-		// TODO: Check if there is no problem with integers with sign
+		
+		// TODO: Check if there is no problem with integers with sign, in the syntax analyzer
 		token_seq_.push_back(&Token::sub);
 		return *token_seq_.back();
 	case '*':
@@ -203,7 +222,7 @@ const Token &pyc::Lexer::next_token(void)
 			}
 
       
-			throw LexerError("Error: Unterminated multi-line string literal");
+			throw LexerError(ERROR_UNTERMINATED_STRING_MUL_LIT);
 		}
 
 		// Handle single-line string literals
@@ -241,14 +260,14 @@ const Token &pyc::Lexer::next_token(void)
 		if (peek_ == quote_type) {
 			token_seq_.push_back(new Word(value, Token(TokenType::STRING, TagType::STRL)));
 			peek_ = ' '; // Consume the closing quote
-		}
-		else {
+		} else {
 			// Handle unterminated single-line string literal
-			throw LexerError("Error: Unterminated string literal");
+			throw LexerError(ERROR_UNTERMINATED_STRING_LIT);
 		}
 
 		return *token_seq_.back();
 	}
+	
 	}
 
 	if (std::isdigit(peek_)) {
@@ -258,6 +277,8 @@ const Token &pyc::Lexer::next_token(void)
 		do {
 			ivalue = 10 * ivalue + (peek_ - '0');
 			readch();
+			if (source_.eof())
+				break;
 		} while (std::isdigit(peek_));
 
 		if (peek_ != '.') {
@@ -269,7 +290,7 @@ const Token &pyc::Lexer::next_token(void)
 		double fvalue = static_cast<double>(ivalue), d = 10.0;
 		for (;;) {
 			readch();
-			if (!std::isdigit(peek_))
+			if (!std::isdigit(peek_) or source_.eof())
 				break;
 			fvalue = fvalue + (peek_ - '0') / d;
 			d *= 10.0;
@@ -304,8 +325,8 @@ const Token &pyc::Lexer::next_token(void)
 		token_seq_.push_back(&keywords_[name]);
 		return *token_seq_.back();
 	}
-
+	
+	// Uknow token
 	peek_ = ' ';
-	token_seq_.push_back(&Token::unknown);
-	return *token_seq_.back();
+	throw LexerError(ERROR_UNKNOW_TOKEN_MSG);
 }
