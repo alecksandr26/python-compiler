@@ -27,8 +27,16 @@ target_include_directories(pycgui
 
 set_target_properties(pycgui PROPERTIES AUTOMOC ON)
 
-# Adding the gui binary executable
+# Adding the cli binary executable
+add_executable(cli.out
+  cli.cpp
+)
 
+target_link_libraries(cli.out
+  PRIVATE pyc
+)
+
+# Adding the gui binary executable
 
 # **Find Qt5 components**
 find_package(Qt5 COMPONENTS Widgets Core REQUIRED)
@@ -39,15 +47,15 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-add_executable(ide.out
-  ide.cpp
+add_executable(app.out
+  app.cpp
 )
 
-target_link_libraries(ide.out
+target_link_libraries(app.out
   PRIVATE pycgui Qt5::Widgets Qt5::Core)
 
-target_include_directories(ide.out
+target_include_directories(app.out
   PRIVATE ${SRC_DIR} ${Qt5Widgets_INCLUDE_DIRS})
 
-set_target_properties(ide.out
+set_target_properties(app.out
   PROPERTIES AUTOMOC ON)
