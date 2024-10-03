@@ -95,6 +95,12 @@ bool pyc::Lexer::is_token_available(void)
 	return reads_until_finds_something();
 }
 
+
+int pyc::Lexer::get_line(void)
+{
+	return line_;
+}
+
 const Token &pyc::Lexer::next_token(void)
 {
 	// Try to finds something otherwise throws an error
