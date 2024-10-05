@@ -22,6 +22,7 @@ int main(int argc, char *argv[])
 			compiler_params.output_file = std::string(argv[i + 1]);
 			i++;	// Move to the next
 		} else {
+			// Valid that this argument is the input file
 			
 		}
 	}

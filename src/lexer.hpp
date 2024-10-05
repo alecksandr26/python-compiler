@@ -5,7 +5,6 @@
 #include <map>
 #include <vector>
 
-
 #include "token.hpp"
 #include "word.hpp"
 
