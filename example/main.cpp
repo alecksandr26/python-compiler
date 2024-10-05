@@ -1,6 +1,5 @@
 // This is a graphical small ide for the project
 #include <QApplication>
-
 #include "gui.hpp"
 
 using namespace pycgui;
