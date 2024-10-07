@@ -1,61 +1,38 @@
-# Define the project as the parent project's name
-project(${CMAKE_PROJECT_NAME})
-
-# Add The pyc library with the specified source files
+# Define the pyc library
 add_library(pyc
-  STATIC lexer.cpp tag.cpp token.cpp word.cpp integer.cpp real.cpp
+  STATIC lexer.cpp tag.cpp token.cpp word.cpp integer.cpp real.cpp parser.cpp
 )
 
-# Set the include directories for the library
 target_include_directories(pyc
   PUBLIC ${CMAKE_CURRENT_LIST_DIR}
 )
 
-# Here we define the gui librarie, that will contain the compiler but also the gui libraries
+# Define the pycgui library
 add_library(pycgui
   STATIC gui.cpp
 )
 
-# Here link the compiler
+target_include_directories(pycgui
+  PUBLIC ${CMAKE_CURRENT_LIST_DIR}
+)
+
+# Link pycgui with pyc and Qt5 libraries
 target_link_libraries(pycgui
   PRIVATE pyc Qt5::Widgets Qt5::Core
 )
 
-target_include_directories(pycgui
-  PRIVATE ${Qt5Widgets_INCLUDE_DIRS}
-)
-
+# Set properties for pycgui
 set_target_properties(pycgui PROPERTIES AUTOMOC ON)
 
-# Adding the cli binary executable
-add_executable(cli.out
-  cli.cpp
-)
-
-target_link_libraries(cli.out
-  PRIVATE pyc
-)
-
-# Adding the gui binary executable
-
-# **Find Qt5 components**
-find_package(Qt5 COMPONENTS Widgets Core REQUIRED)
-
-
-# **Enable Qt-specific features**
-set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTORCC ON)
-set(CMAKE_AUTOUIC ON)
-
+# Define the executable for the GUI application
 add_executable(app.out
   app.cpp
 )
 
+# Link the executable with pycgui, pyc, and Qt5
 target_link_libraries(app.out
-  PRIVATE pycgui Qt5::Widgets Qt5::Core)
+  PRIVATE pycgui pyc Qt5::Widgets Qt5::Core
+)
 
-target_include_directories(app.out
-  PRIVATE ${SRC_DIR} ${Qt5Widgets_INCLUDE_DIRS})
-
-set_target_properties(app.out
-  PROPERTIES AUTOMOC ON)
+# Set properties for app.out
+set_target_properties(app.out PROPERTIES AUTOMOC ON)

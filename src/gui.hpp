@@ -1,34 +1,28 @@
-#ifndef GUI_H
-#define GUI_H
+// gui.hpp
+#ifndef GUI_HPP
+#define GUI_HPP
 
 #include <QMainWindow>
 #include <QTextEdit>
 #include <QPushButton>
 
-
-// Just for the checkers
-#ifndef slots
-#define slots
-#endif
-
-// Define the space of the gui
 namespace pycgui {
-	class GUI : public QMainWindow {
-		Q_OBJECT
-	
-	public:
-		GUI(QWidget *parent = nullptr);
-		~GUI(void);
-		     
-	private slots:
-		void onButtonClick(void); // Slot for handling button click
-	
-	private:
-		QTextEdit *textArea1; // Input area
-		QTextEdit *textArea2; // Output area
-		QPushButton *button;
-	};
+    class GUI : public QMainWindow {
+        Q_OBJECT
+
+    public:
+        explicit GUI(QWidget *parent = nullptr);
+        ~GUI();
+
+    private slots:
+        void onButtonClick();
+
+    private:
+        QTextEdit *textArea1; // Input code
+        QTextEdit *textArea2; // Lexer output
+        QTextEdit *textArea3; // Parser output
+        QPushButton *button;
+    };
 }
 
-
-#endif
+#endif // GUI_HPP

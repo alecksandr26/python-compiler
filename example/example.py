@@ -1,5 +1,3 @@
-
-
 num = 1
 x = 3.25342
 # Hola
@@ -17,6 +15,3 @@ num2 = 235
 num3 = 5325
 
 print("Hello there")
-
-
-

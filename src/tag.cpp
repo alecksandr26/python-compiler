@@ -1,56 +1,58 @@
-#include <string>
+// tag.cpp
 #include "tag.hpp"
 
-// Define the static array outside the class
-const std::string pyc::TagType::tag_types_str[TAG_COUNT] = {
-	// Names and literals 
-	"ID",        // Identifier
-	"INTEGER",   // Integer literal
-	"REAL",      // Real number literal
-	"STRL",      // String literal
-	"INDEX",     // Indexing
-	"TRUE",      // Boolean true
-	"FALSE",     // Boolean false
+namespace pyc {
+    const std::string TagType::tag_types_str[TagType::TAG_COUNT] = {
+        // Operators
+        "\"=\"",     // INIT
+        "\"+\"",     // ADD
+        "\"-\"",     // SUB
+        "\"*\"",     // MUL
+        "\"/\"",     // DIV
+        "\"%\"",     // MOD
+        "\"**\"",    // POW
+        "AND",
+        "OR",
+        "NOT",
+        "\"==\"",    // EQ
+        "\"!=\"",    // NE
+        "\">=\"",    // GE
+        "\"<=\"",    // LE
+        "\">\"",     // GT
+        "\"<\"",     // LT
 
-	// Arithmetic Operations
-	"\"=\"",     // INIT
-	"\"+\"",     // ADD
-	"\"-\"",     // SUB
-	"\"*\"",     // MUL
-	"\"/\"",     // DIV
-	"\"%\"",     // MOD
-	"\"**\"",    // POW
+        // Delimiters
+        "\"[\"",     // LBRACKET
+        "\"]\"",     // RBRACKET
+        "\"(\"",     // LPAREN
+        "\")\"",     // RPAREN
+        "\",\"",     // COMMA
+        "\":\"",     // COLON
+        "INDENT",    // INDENT
+        "DEDENT",    // DEDENT
 
-	// Basic Logical Operations
-	"\">\"",     // GT
-	"\">=\"",    // GE
-	"\"<\"",     // LT
-	"\"<=\"",    // LE
-	"\"==\"",    // EQ
-	"\"!=\"",    // NEQ
-	
-	// Boolean Operations
-	"AND",
-	"OR",
-	"NOT",
+        // Keywords
+        "IF",
+        "ELSE",
+        "ELIF",
+        "WHILE",
+        "FOR",
+        "DEF",
+        "RETURN",
+        "BREAK",
+        "CONTINUE",
+        "PRINT",     // 'print' function
 
-	// Structural Paradigm
-	"IF",
-	"ELSE",
-	"ELIF",
-	"WHILE",
-	"FOR",
-	"BREAK",
-	"CONTINUE",
-	"DEF",
-	"\":\"",      // IDENT
-	
-	// List and tuple delimiters
-	"\"[\"",      // LBRACKET
-	"\"]\"",      // RBRACKET
-	"\"(\"",      // LPAREN
-	"\")\"",      // RPAREN
-	"\",\"",      // COMMA
-	
-	"UNKNOWN",
-};
+        // Identifiers and literals
+        "IDENT",
+        "STRL",
+        "INTEGER",
+        "REAL",
+
+        // Unknown
+        "UNKNOWN",
+
+        // End of file/input
+        "END"
+    };
+}

@@ -1,39 +1,45 @@
+// lexer.hpp
 #ifndef LEXER_INCLUDED
 #define LEXER_INCLUDED
 
-#include <fstream>
+#include <istream>
 #include <map>
 #include <vector>
-
+#include <memory>
+#include <deque>
 #include "token.hpp"
 #include "word.hpp"
 
 namespace pyc {
-	class Lexer {
-	private:
-		std::istream &source_;
-		std::map<std::string, Word> keywords_;
-		std::vector<const Token *> token_seq_;
-		char peek_;
-		int line_;
-		
-		void readch(void);
-		bool expectch(char ch);
-		bool reads_until_finds_something(void);
-		
-	public:
-		Lexer(std::istream &source);
-		Lexer(int fd);
-		bool is_token_available(void);
-		const Token &next_token(void);
-		int get_line(void);
-		
-	};  
+    class Lexer {
+    private:
+        std::istream &source_;
+        std::map<std::string, Word> keywords_;
+        char peek_;
+        int line_;
+
+        // For indentation handling
+        std::vector<int> indent_levels_;
+        bool at_line_start_;
+        int current_indent_;
+
+        // Token queue for pending tokens
+        std::deque<std::unique_ptr<Token>> token_queue_;
+
+        void readch();
+        bool expectch(char ch);
+        bool reads_until_finds_something();
+
+        void handle_indentation();
+
+    public:
+        Lexer(std::istream &source);
+        ~Lexer();
+
+        bool is_token_available();
+        std::unique_ptr<Token> next_token();
+        int get_line() const;
+    };
 }
 
-#endif
-
-
-
-
-
+#endif // LEXER_INCLUDED

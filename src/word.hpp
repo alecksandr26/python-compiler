@@ -1,32 +1,27 @@
+// word.hpp
 #ifndef WORD_INCLUDED
 #define WORD_INCLUDED
 
-#include <ostream>
 #include <string>
 #include "token.hpp"
 
-namespace pyc
-{
+namespace pyc {
+    class Word : public Token {
+    private:
+        std::string lexeme_;
 
-	class Word : public Token
-	{
-	private:
-		std::string lexeme_;
+    public:
+        Word(const std::string &lexeme, Token token);
+        virtual ~Word();
 
-	public:
-		Word(const std::string &lexeme, const Token &token);
-		Word(void);
-		virtual ~Word(void) = default;
+        const std::string &get_lexeme() const;
 
-		friend std::ostream &operator<<(std::ostream &os, const Word &word)
-		{
-			os << "Word<" << TokenType::token_types_str[word.get_type()]
-			   << ", \"" << word.lexeme_ << "\">";
-			return os;
-		}
+        std::string to_string() const override;
 
-		static Word eq, ne, gt, ge, lt, le;
-	};
+        // Static words
+        static Word eq, ne, ge, le, gt, lt;
+        static Word and_, or_, not_;
+    };
 }
 
-#endif
+#endif // WORD_INCLUDED

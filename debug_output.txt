@@ -1,0 +1,80 @@
+Input String (GUI):
+num = 1
+x = 3.25342
+# Hola
+string_var = "hola"
+string_two = """hola soy string 2"""
+lst_nums = [1,2,3]
+lst_strings = ["objeto_1", "objeto_2"]
+if num == 1:
+    x = 12353 * 2
+
+
+else:
+    x = 3 / 350050
+
+
+num2 = 235
+num3 = 5325
+
+
+print("Hello there")
+
+
+--- End of Input ---
+Input String:
+num = 1
+x = 3.25342
+# Hola
+string_var = "hola"
+string_two = """hola soy string 2"""
+lst_nums = [1,2,3]
+lst_strings = ["objeto_1", "objeto_2"]
+if num == 1:
+    x = 12353 * 2
+
+
+else:
+    x = 3 / 350050
+
+
+num2 = 235
+num3 = 5325
+
+
+print("Hello there")
+--- End of Input ---
+Handling indentation at line 1: current_indent_ = 0, last_indent = 0
+Handling indentation at line 2: current_indent_ = 0, last_indent = 0
+Handling indentation at line 4: current_indent_ = 0, last_indent = 0
+Handling indentation at line 5: current_indent_ = 0, last_indent = 0
+Handling indentation at line 6: current_indent_ = 0, last_indent = 0
+Handling indentation at line 7: current_indent_ = 0, last_indent = 0
+Handling indentation at line 8: current_indent_ = 0, last_indent = 0
+Handling indentation at line 9: current_indent_ = 4, last_indent = 0
+Indentation increased. INDENT token added.
+Handling indentation at line 12: current_indent_ = 0, last_indent = 4
+Indentation decreased. DEDENT token added.
+Handling indentation at line 13: current_indent_ = 4, last_indent = 0
+Indentation increased. INDENT token added.
+Handling indentation at line 16: current_indent_ = 0, last_indent = 4
+Indentation decreased. DEDENT token added.
+Handling indentation at line 17: current_indent_ = 0, last_indent = 0
+Handling indentation at line 20: current_indent_ = 0, last_indent = 0
+Handling indentation at line 1: current_indent_ = 0, last_indent = 0
+Handling indentation at line 2: current_indent_ = 0, last_indent = 0
+Handling indentation at line 4: current_indent_ = 0, last_indent = 0
+Handling indentation at line 5: current_indent_ = 0, last_indent = 0
+Handling indentation at line 6: current_indent_ = 0, last_indent = 0
+Handling indentation at line 7: current_indent_ = 0, last_indent = 0
+Handling indentation at line 8: current_indent_ = 0, last_indent = 0
+Handling indentation at line 9: current_indent_ = 4, last_indent = 0
+Indentation increased. INDENT token added.
+Handling indentation at line 12: current_indent_ = 0, last_indent = 4
+Indentation decreased. DEDENT token added.
+Handling indentation at line 13: current_indent_ = 4, last_indent = 0
+Indentation increased. INDENT token added.
+Handling indentation at line 16: current_indent_ = 0, last_indent = 4
+Indentation decreased. DEDENT token added.
+Handling indentation at line 17: current_indent_ = 0, last_indent = 0
+Handling indentation at line 20: current_indent_ = 0, last_indent = 0

@@ -1,68 +1,70 @@
+// tag.hpp
 #ifndef TAG_INCLUDED
 #define TAG_INCLUDED
 
 #include <string>
 
 namespace pyc {
-	class TagType {
-	public:
-		enum TagTypeEnum {
-			// Names and literals 
-			ID = 0,	// variables
-			INTEGER,
-			REAL,
-			STRL,	// strings literals
-			INDEX,
-			TRUE,
-			FALSE,
-			
-			// Arithmetic Operations
-			INIT,	// =
-			ADD,	// +
-			SUB,	// -
-			MUL,	// *
-			DIV,	// /
-			MOD,	// %
-			POW,	// **
+    class TagType {
+    public:
+        enum TagTypeEnum {
+            // Operators
+            INIT,
+            ADD,
+            SUB,
+            MUL,
+            DIV,
+            MOD,
+            POW,
+            AND,
+            OR,
+            NOT,
+            EQ,
+            NE,
+            GE,
+            LE,
+            GT,
+            LT,
 
-			// Basic Logical Operations
-			GT,	// >
-			GE,	// >=
-			LT,	// <
-			LE,	// <=
-			EQ,	// ==
-			NEQ, 	// !=
+            // Delimiters
+            LBRACKET,
+            RBRACKET,
+            LPAREN,
+            RPAREN,
+            COMMA,
+            COLON,
+            INDENT,   // Added for indentation handling
+            DEDENT,   // Added for indentation handling
 
-			// Boolean Operations
-			AND,
-			OR,
-			NOT,
+            // Keywords
+            IF,
+            ELSE,
+            ELIF,
+            WHILE,
+            FOR,
+            DEF,
+            RETURN,
+            BREAK,
+            CONTINUE,
+            PRINT,    // Added for 'print' function
 
-			// Structural Paradigm
-			IF,
-			ELSE,
-			ELIF,
-			WHILE,
-			FOR,
-			BREAK,
-			CONTINUE,
-			DEF,	// functions
-			IDENT,	// Python indentation ":"
+            // Identifiers and literals
+            IDENT,
+            STRL,
+            INTEGER,
+            REAL,
 
-			// Delimiters
-			LBRACKET,  // [
-			RBRACKET,  // ]
-			LPAREN,    // (
-			RPAREN,    // )
-			COMMA,     // ,
+            // Unknown
+            UNKNOWN,
 
-			// -------------------------------
-			UNKNOWN,
-			TAG_COUNT  // Total number of tags
-		};
-		
-		static const std::string tag_types_str[TAG_COUNT];
-	};
+            // End of file/input
+            END,
+
+            TAG_COUNT // Used for array size
+        };
+
+        static const std::string tag_types_str[TAG_COUNT];
+    };
 }
 
-#endif
+#endif // TAG_INCLUDED

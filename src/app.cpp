@@ -1,18 +1,14 @@
-// This is a graphical small ide for the project
+// app.cpp
 #include <QApplication>
 
 #include "gui.hpp"
 
-using namespace pycgui;
-
 int main(int argc, char *argv[])
 {
-	QApplication app(argc, argv);
-	
-	GUI window;
-	window.show();
+    QApplication app(argc, argv);
 
-	return app.exec();
+    pycgui::GUI window;
+    window.show();
+
+    return app.exec();
 }
-
-
