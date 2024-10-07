@@ -56,10 +56,13 @@ Token pyc::Token::lbracket(TokenType::DELIMITER, TagType::LBRACKET);
 Token pyc::Token::rbracket(TokenType::DELIMITER, TagType::RBRACKET);
 Token pyc::Token::lparen(TokenType::DELIMITER, TagType::LPAREN);
 Token pyc::Token::rparen(TokenType::DELIMITER, TagType::RPAREN);
+Token pyc::Token::two_points(TokenType::DELIMITER, TagType::TWO_POINTS);
+Token pyc::Token::end_of_line(TokenType::DELIMITER, TagType::EOL);
+Token pyc::Token::end_of_file(TokenType::DELIMITER, TagType::ENDOFFILE);
 
 // Token for comma
 Token pyc::Token::comma(TokenType::DELIMITER, TagType::COMMA);  // Add initialization for the comma token
 
 // Token for identifiers and unknown types
-Token pyc::Token::ident(TokenType::OPERATOR, TagType::IDENT);
 Token pyc::Token::unknown(TokenType::UNKNOWN, TagType::UNKNOWN);
+

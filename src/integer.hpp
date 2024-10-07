@@ -1,6 +1,9 @@
 #ifndef INTEGER_INCLUDED
 #define INTEGER_INCLUDED
 
+#include <ostream>
+#include <cstdint>
+
 #include "token.hpp"
 
 namespace pyc {

@@ -1,10 +1,7 @@
-#include "parser.hpp"
+
 
 // Statements:
-// stmt --> if:block | while:block
-
-
-
+// stmt --> (ident:block(n) + '') + (if:block | while:block | for:block | init | cond)
 
 // If - Statement:
 // if:block --> 'if' + cond + ':' + '\n' + block + (elif:block | else:block | '')
@@ -12,10 +9,10 @@
 // else:block --> 'else' + ':' + '\n' + block
 
 // While - Statemnt:
-// while:block
+// while:block --> while + cond + ":" + '\n' + block
 
 // code blocks
-// block --> 
+// block --> stmt + ident:block(n - 1) | stmt + '\n' + block
 
 
 // Conditionals:
@@ -68,23 +65,32 @@
 // args --> '(' + arg_params + ')'
 // arg_params --> expr | expr + ',' + arg_params
 
+#include <vector>
+#include "parser.hpp"
+#include "token.hpp"
+
+using namespace pyc;
+
 
 
 // Create also the lexer with the source file
-pyc::Parser::Parser(std::istream &source) : lexer_(source)
+pyc::Parser::Parser(std::istream &source) : lexer_(source), curr_token_(Token::unknown), ast_()
 {
 	
 }
 
+void pyc::Parser::advance_(void)
+{
+	if (lexer_.is_token_available()) {
+		curr_token_ = lexer_.next_token();
+	}
+	
+}
 
-
-
-
-
-
-
-
-
-
-
+const AST &pyc::Parser::build_ast(void)
+{
+	
+	
+	return ast_;
+}
 

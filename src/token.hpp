@@ -15,7 +15,7 @@ namespace pyc {
 			NUMBER,        // Numeric literals like 123, 3.14
 			STRING,        // String literals like "hello"
 			OPERATOR,      // Operators like +, -, *, /
-			DELIMITER,     // List and tuple delimiters like [], (), ,
+			DELIMITER,     // [], (),  or code blocks ,
 			UNKNOWN        // For any token that doesn't match known types
 		};
 		
@@ -42,9 +42,9 @@ namespace pyc {
 			   << ", " << token.get_tag_str() << ">";
 			return os;
 		}
-
+		
 		// Static tokens to represent common operators, delimiters, and unknown token
-		static Token init, add, sub, mul, div, mod, pow, ident;
+		static Token init, add, sub, mul, div, mod, pow, two_points, end_of_line, end_of_file;
 		static Token lbracket, rbracket, lparen, rparen, comma, unknown;  // Add comma token
 	};
 }

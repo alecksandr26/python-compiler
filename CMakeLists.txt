@@ -10,7 +10,7 @@ set(CMAKE_CXX_STANDARD 20)
 
 # Define compiler flags
 if(UNIX)
-  set(CMAKE_CXX_FLAGS_DEBUG "-Wall -Wextra -pedantic -ggdb")
+  set(CMAKE_CXX_FLAGS_DEBUG "-Wall -Wextra -pedantic -ggdb ")
   set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG -ffast-math -march=native")
 else()
   # Flags for Windows with MSVC

@@ -12,6 +12,7 @@
 #include "tag.hpp"
 #include "token.hpp"
 #include "word.hpp"
+#include "ident.hpp"
 
 // The errors messages
 #define ERROR_UNKNOW_TOKEN_MSG "Unknow token"
@@ -56,8 +57,11 @@ pyc::Lexer::Lexer(std::istream &source) : source_(source)
 	keywords_.insert(std::make_pair("or", Word("or", Token(TokenType::OPERATOR, TagType::OR))));
 	keywords_.insert(std::make_pair("not", Word("not", Token(TokenType::OPERATOR, TagType::NOT))));
 
+	// Initial program Token
+	
+
 	line_ = 0;
-	peek_ = ' ';
+	peek_ = '\0';
 }
 
 void pyc::Lexer::readch(void)
@@ -69,24 +73,25 @@ bool pyc::Lexer::expectch(char ch)
 {
 	readch();
 	if (peek_ != ch) {
-		peek_ = ' ';
+		peek_ = '\0';
 		return false;
 	}
 
+	peek_ = '\0';
 	return true;
 }
 
 bool pyc::Lexer::reads_until_finds_something(void)
 {
 	for (; !source_.eof(); readch()) {
-		if (peek_ == ' ' || peek_ == '\t')
+		if (peek_ == '\0')
 			continue;
-		else if (peek_ == '\n')
-			line_++;
+		// else if (peek_ == '\n')
+		// 	line_++;
 		else
 			break;
 	}
-
+	
 	return !source_.eof();
 }
 
@@ -101,11 +106,17 @@ int pyc::Lexer::get_line(void)
 	return line_;
 }
 
+
+// TODO: Divide this function in serveral parts
 const Token &pyc::Lexer::next_token(void)
 {
 	// Try to finds something otherwise throws an error
-	if (!reads_until_finds_something())
-		throw LexerError(ERROR_NO_NEXT_TOKEN);
+	if (!reads_until_finds_something()) {
+		if (token_seq_.back()->get_tag() == TagType::ENDOFFILE)
+			throw LexerError(ERROR_NO_NEXT_TOKEN);
+		token_seq_.push_back(&Token::end_of_file);
+		return *token_seq_.back();
+	}
 
 	// Simple lexemes
 	switch (peek_) {
@@ -139,11 +150,11 @@ const Token &pyc::Lexer::next_token(void)
 		token_seq_.push_back(&Word::lt);
 		return *token_seq_.back();
 	case '+':
-		peek_ = ' ';
+		peek_ = '\0';
 		token_seq_.push_back(&Token::add);
 		return *token_seq_.back();
 	case '-':
-		peek_ = ' ';
+		peek_ = '\0';
 		
 		// TODO: Check if there is no problem with integers with sign, in the syntax analyzer
 		token_seq_.push_back(&Token::sub);
@@ -157,50 +168,49 @@ const Token &pyc::Lexer::next_token(void)
 		token_seq_.push_back(&Token::mul);
 		return *token_seq_.back();
 	case '/':
-		peek_ = ' ';
+		peek_ = '\0';
 		token_seq_.push_back(&Token::div);
 		return *token_seq_.back();
 	case '%':
-		peek_ = ' ';
+		peek_ = '\0';
 		token_seq_.push_back(&Token::mod);
 		return *token_seq_.back();
 	case ':':
-		peek_ = ' ';
-		token_seq_.push_back(&Token::ident);
+		peek_ = '\0';
+		token_seq_.push_back(&Token::two_points);
 		return *token_seq_.back();
 	case '#': {
 		// Skip characters until the end of the line or EOF
-		while (peek_ != '\n' && !source_.eof()) {
+		while (peek_ != '\n' && !source_.eof())
 			readch();
-		}
-
+		
 		// Once the comment is skipped, recursively call next_token to process the
 		// next valid token
 		return next_token();
 	}
 		// Handle list delimiters (square brackets)
 	case '[':
-		peek_ = ' ';
+		peek_ = '\0';
 		token_seq_.push_back(&Token::lbracket); // lbracket represents `[`
 		return *token_seq_.back();
 	case ']':
-		peek_ = ' ';
+		peek_ = '\0';
 		token_seq_.push_back(&Token::rbracket); // rbracket represents `]`
 		return *token_seq_.back();
 
 		// Handle tuple delimiters (parentheses)
 	case '(':
-		peek_ = ' ';
+		peek_ = '\0';
 		token_seq_.push_back(&Token::lparen); // lparen represents `(`
 		return *token_seq_.back();
 	case ')':
-		peek_ = ' ';
+		peek_ = '\0';
 		token_seq_.push_back(&Token::rparen); // rparen represents `)`
 		return *token_seq_.back();
 
 		// Handle comma delimiters
 	case ',':
-		peek_ = ' ';
+		peek_ = '\0';
 		token_seq_.push_back(&Token::comma); // comma represents `,`
 		return *token_seq_.back();
 
@@ -218,7 +228,7 @@ const Token &pyc::Lexer::next_token(void)
 			while (!source_.eof()) {
 				if (peek_ == quote_type && expectch(quote_type) && expectch(quote_type)) {
 					// Found closing triple quotes
-					peek_ = ' '; // Consume the closing triple quote
+					peek_ = '\0'; // Consume the closing triple quote
 					token_seq_.push_back(new Word(value, Token(TokenType::STRING,
 										   TagType::STRL)));
 					return *token_seq_.back();
@@ -265,7 +275,7 @@ const Token &pyc::Lexer::next_token(void)
 		// Check for closing quote
 		if (peek_ == quote_type) {
 			token_seq_.push_back(new Word(value, Token(TokenType::STRING, TagType::STRL)));
-			peek_ = ' '; // Consume the closing quote
+			peek_ = '\0'; // Consume the closing quote
 		} else {
 			// Handle unterminated single-line string literal
 			throw LexerError(ERROR_UNTERMINATED_STRING_LIT);
@@ -273,7 +283,32 @@ const Token &pyc::Lexer::next_token(void)
 
 		return *token_seq_.back();
 	}
-	
+	case ' ': {
+		// To verify the level of identation
+		long level;
+		for (level = 1; peek_ == ' ' and !source_.eof(); level++)
+			readch();
+		
+		// Get the actual level of identation
+		level /= 4;
+		
+		if (level == 0)
+			return next_token();
+		
+		if (identation_.count(level) == 0)
+			identation_.insert(std::make_pair(level, Ident(level)));
+		
+		token_seq_.push_back(&identation_[level]);
+		return *token_seq_.back();
+	}
+
+	case '\n':
+		line_++;
+		[[fallthrough]];  // Intentional fallthrough
+	case ';':
+		readch();
+		token_seq_.push_back(&Token::end_of_line);
+		return *token_seq_.back();
 	}
 
 	if (std::isdigit(peek_)) {
@@ -288,8 +323,7 @@ const Token &pyc::Lexer::next_token(void)
 		} while (std::isdigit(peek_));
 
 		if (peek_ != '.') {
-			token_seq_.push_back(
-					     new Integer(ivalue, Token(TokenType::NUMBER, TagType::INTEGER)));
+			token_seq_.push_back(new Integer(ivalue, Token(TokenType::NUMBER, TagType::INTEGER)));
 			return *token_seq_.back();
 		}
 
@@ -333,6 +367,6 @@ const Token &pyc::Lexer::next_token(void)
 	}
 	
 	// Uknow token
-	peek_ = ' ';
+	peek_ = '\0';
 	throw LexerError(ERROR_UNKNOW_TOKEN_MSG);
 }

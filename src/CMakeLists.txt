@@ -3,7 +3,7 @@ project(${CMAKE_PROJECT_NAME})
 
 # Add The pyc library with the specified source files
 add_library(pyc
-  STATIC lexer.cpp tag.cpp token.cpp word.cpp integer.cpp real.cpp
+  STATIC lexer.cpp tag.cpp token.cpp word.cpp integer.cpp real.cpp ident.cpp parser.cpp ast.cpp
 )
 
 # Set the include directories for the library

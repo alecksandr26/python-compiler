@@ -43,7 +43,8 @@ const std::string pyc::TagType::tag_types_str[TAG_COUNT] = {
 	"BREAK",
 	"CONTINUE",
 	"DEF",
-	"\":\"",      // IDENT
+	"IDENT",       // Level of identation
+	"\":\"",
 	
 	// List and tuple delimiters
 	"\"[\"",      // LBRACKET
@@ -51,6 +52,7 @@ const std::string pyc::TagType::tag_types_str[TAG_COUNT] = {
 	"\"(\"",      // LPAREN
 	"\")\"",      // RPAREN
 	"\",\"",      // COMMA
-	
+	"END OF LINE",	      // END OF LINE
+	"END OF FILE",	      // END OF FILE
 	"UNKNOWN",
 };
