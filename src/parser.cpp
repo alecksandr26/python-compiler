@@ -96,14 +96,12 @@ void pyc::Parser::stmnt_(void)
 	assert(curr_token_.get_type() != TokenType::UNKNOWN);
 
 	switch (curr_token_.get_type()) {
-		
 	case TokenType::KEYWORD:
 		// Keywords of an structure
 		
 		break;
 	case TokenType::IDENTIFIER:
 		// a functon call ?, or variables
-		
 		
 		break;
 	}
@@ -113,7 +111,6 @@ void pyc::Parser::stmnt_(void)
 
 void pyc::Parser::parse(void)
 {
-	
 	for (advance_() ; lexer_.is_token_available(); advance_())
 		stmnt_();
 }
