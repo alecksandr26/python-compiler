@@ -1,7 +1,6 @@
 
 #include "ast.hpp"
 
-
 using namespace pyc;
 
 const std::string pyc::TNodeType::tnode_types_str[TNODETYPE_COUNT] = {
@@ -13,8 +12,11 @@ const std::string pyc::TNodeType::tnode_types_str[TNODETYPE_COUNT] = {
 
 pyc::AST::AST(void)
 {
-	root_ = NULL;
+	program_ = NULL;
 }
+
+
+
 
 
 

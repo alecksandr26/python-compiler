@@ -83,13 +83,14 @@ int main(int argc, char *argv[])
 	// For the moment process with the lexer
 	std::ifstream source(compiler_params.source_file);
 
-	pyc::Parser parser(source);
+	// pyc::Parser parser(source);
 
 
-	const pyc::AST &ast = parser.build_ast();
+	// const pyc::AST &ast = parser.build_ast();
 
-	std::cout << ast << std::endl;
-	
+	// std::cout << ast << std::endl;
+
+	test_lexer(source);
 	
 	return 0;
 }
