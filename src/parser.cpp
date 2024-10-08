@@ -66,12 +66,12 @@
 // arg_params --> expr | expr + ',' + arg_params
 
 #include <vector>
+#include <cassert>
 #include "parser.hpp"
+#include "ast.hpp"
 #include "token.hpp"
 
 using namespace pyc;
-
-
 
 // Create also the lexer with the source file
 pyc::Parser::Parser(std::istream &source) : lexer_(source), curr_token_(Token::unknown), ast_()
@@ -83,14 +83,43 @@ void pyc::Parser::advance_(void)
 {
 	if (lexer_.is_token_available()) {
 		curr_token_ = lexer_.next_token();
+		return;
 	}
 	
+	assert(0 && "There isn't more tokens");
 }
 
-const AST &pyc::Parser::build_ast(void)
+
+void pyc::Parser::stmnt_(void)
+{
+	// Can't be an unknow token at this stage
+	assert(curr_token_.get_type() != TokenType::UNKNOWN);
+
+	switch (curr_token_.get_type()) {
+		
+	case TokenType::KEYWORD:
+		// Keywords of an structure
+		
+		break;
+	case TokenType::IDENTIFIER:
+		// a functon call ?, or variables
+		
+		
+		break;
+	}
+}
+
+
+
+void pyc::Parser::parse(void)
 {
 	
-	
+	for (advance_() ; lexer_.is_token_available(); advance_())
+		stmnt_();
+}
+
+const AST &pyc::Parser::get_ast(void) const
+{
 	return ast_;
 }
 

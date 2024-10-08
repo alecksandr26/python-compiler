@@ -40,9 +40,11 @@ const std::string pyc::TagType::tag_types_str[TAG_COUNT] = {
 	"ELIF",
 	"WHILE",
 	"FOR",
+	"IN",
 	"BREAK",
 	"CONTINUE",
 	"DEF",
+	"RETURN",
 	"IDENT",       // Level of identation
 	"\":\"",
 	

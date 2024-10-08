@@ -44,9 +44,11 @@ namespace pyc {
 			ELIF,
 			WHILE,
 			FOR,
+			IN,
 			BREAK,
 			CONTINUE,
 			DEF,	// functions
+			RETURN, 
 			IDENT,	// Level of identation
 			TWO_POINTS, // Python indentation two points ":"
 

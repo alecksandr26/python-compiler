@@ -17,13 +17,13 @@ namespace pyc {
 
 		// To match the next token
 		bool match_(const Token &token);
-
+		
 		void term_(void);
 		
 		void factor_(void);
 		
 		void expr_(void);
-
+		
 		// To parse a line, goind deep with tis expressions, factor until reach the term
 		void stmnt_(void);
 
@@ -39,14 +39,16 @@ namespace pyc {
 		// To parse this types of function
 		void func_stmnt_(void);
 		
-		// It will parse the entire main block function, here the statemnts don't a have any
-		// level of identation
-		void program_(void);
+
 		
 	public:
 		Parser(std::istream &source);
+
+		// It will parse the entire main block function, here the statemnts don't a have any
+		// level of identation
+		void parse(void);
 		
-		const AST &build_ast(void);
+		const AST &get_ast(void) const;
 	};
 }
 

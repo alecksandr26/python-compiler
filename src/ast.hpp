@@ -68,6 +68,23 @@ namespace pyc {
 		
 		TNodeOp(void) : TNode(TNodeType::OPER), token(NULL) {}
 	};
+
+
+	class TNodeInit : public TNode {
+	public:
+		// The '=' assign token
+		Token *token;
+		
+		// The id variable to be define
+		TNodeTerm *var;
+
+
+		// NOTICE: Then the expression, notice that an expression could a simple term, like
+		// a harcode number, then this pointer could be in reality a TNodeTerm and not a
+		// TNodeOp, rememebr always first check its type, so be alert :)
+		TNodeOp *expr;
+		
+	};
 	
 	class TNodeBlock : public TNode {
 	public:
@@ -140,6 +157,7 @@ namespace pyc {
 
 		TNodeFunc(void) : TNode(TNodeType::FUNCBLOCK) {}
 	};
+	
 	
 	
 	class AST {

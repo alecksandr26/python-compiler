@@ -50,7 +50,9 @@ pyc::Lexer::Lexer(std::istream &source) : source_(source)
 	keywords_.insert(std::make_pair("elif", Word("elif", Token(TokenType::KEYWORD, TagType::ELIF))));
 	keywords_.insert(std::make_pair("while", Word("while", Token(TokenType::KEYWORD, TagType::WHILE))));
 	keywords_.insert(std::make_pair("for", Word("for", Token(TokenType::KEYWORD, TagType::FOR))));
+	keywords_.insert(std::make_pair("in", Word("in", Token(TokenType::KEYWORD, TagType::IN))));
 	keywords_.insert(std::make_pair("def", Word("def", Token(TokenType::KEYWORD, TagType::DEF))));
+	keywords_.insert(std::make_pair("return", Word("return", Token(TokenType::KEYWORD, TagType::RETURN))));
 
 	// Boolean operations keywords
 	keywords_.insert(std::make_pair("and", Word("and", Token(TokenType::OPERATOR, TagType::AND))));

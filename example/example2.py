@@ -11,6 +11,9 @@ def main():
 
     else:
         print("Idk!!!")
+
+        for i in range(0, 10):
+            print(i)
         
         
 if __name__ == "__main__":
