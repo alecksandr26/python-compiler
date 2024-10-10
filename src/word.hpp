@@ -25,6 +25,9 @@ namespace pyc
 			return os;
 		}
 
+		const std::string &get_lexeme(void) const;
+		
+
 		static Word eq, ne, gt, ge, lt, le;
 	};
 }

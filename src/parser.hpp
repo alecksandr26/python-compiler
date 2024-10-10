@@ -22,6 +22,7 @@ namespace pyc {
 
 		// To parse any type of expression
 		TNode *term_(void);     // It will return a parsed term, coulde be function call
+		TNode *exp_(void);	// It will parse en exponent
 		TNode *factor_(void); // It will return a parsed factor
 		TNode *expr_(void); // it will return a tree with the parsed expression
 
@@ -32,7 +33,7 @@ namespace pyc {
 		void stmnt_(void);
 
 		// To parse the different types of initialization '='
-		void init_(Token *id_token);
+		void init_stmnt_(Token *id_token);
 
 		// It will parse a new code block
 		void block_(void);

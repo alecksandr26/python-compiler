@@ -14,6 +14,11 @@ pyc::Word::Word(void) : Token()
 	lexeme_ = "";
 }
 
+const std::string &pyc::Word::get_lexeme(void) const
+{
+	return lexeme_;
+}
+
 Word pyc::Word::eq("==", Token(TokenType::OPERATOR, TagType::EQ));
 Word pyc::Word::ne("!=", Token(TokenType::OPERATOR, TagType::NEQ));
 Word pyc::Word::gt(">", Token(TokenType::OPERATOR, TagType::GT));

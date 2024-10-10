@@ -63,9 +63,6 @@ pyc::Lexer::Lexer(std::istream &source) : source_(source)
 	keywords_.insert(std::make_pair("or", Word("or", Token(TokenType::OPERATOR, TagType::OR))));
 	keywords_.insert(std::make_pair("not", Word("not", Token(TokenType::OPERATOR, TagType::NOT))));
 
-	// Initial program Token
-	
-
 	line_ = 1;
 	peek_ = '\0';
 }
@@ -109,6 +106,8 @@ bool pyc::Lexer::is_token_available(void)
 
 int pyc::Lexer::get_line(void)
 {
+	if (token_seq_.front()->get_tag() == TagType::EOL)
+		return line_ - 1 ;
 	return line_;
 }
 

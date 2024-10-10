@@ -1,7 +1,5 @@
 def main(name, param2):
-    pass
-    asdfasdfasdf
-    
+    num = 10 * 3 / 2 ** 2
     
 main("pedrito", "pedrito2")
 
@@ -9,4 +7,4 @@ main("pedrito", "pedrito2")
 
 
 
-    
+

@@ -75,6 +75,79 @@ void test_lexer(std::ifstream &source)
 // Token<DELIMITER, END OF LINE>
 // Token<DELIMITER, END OF LINE>
 
+// Another program:
+// Word<KEYWORD, "def">
+// Word<IDENTIFIER, "main">
+// Token<DELIMITER, "(">
+// Word<IDENTIFIER, "name">
+// Token<DELIMITER, ",">
+// Word<IDENTIFIER, "param2">
+// Token<DELIMITER, ")">
+// Token<DELIMITER, ":">
+// Token<DELIMITER, END OF LINE>
+// Ident<DELIMITER, "1">
+// Word<KEYWORD, "pass">
+// Token<DELIMITER, END OF LINE>
+// Ident<DELIMITER, "1">
+// Word<IDENTIFIER, "asdfasdfasdf">
+// Token<DELIMITER, END OF LINE>
+// Ident<DELIMITER, "1">
+// Token<DELIMITER, END OF LINE>
+// Ident<DELIMITER, "1">
+// Token<DELIMITER, END OF LINE>
+// Word<IDENTIFIER, "main">
+// Token<DELIMITER, "(">
+// Word<STRING, "pedrito">
+// Token<DELIMITER, ",">
+// Word<STRING, "pedrito2">
+// Token<DELIMITER, ")">
+// Token<DELIMITER, END OF LINE>
+// Token<DELIMITER, END OF LINE>
+// Token<DELIMITER, END OF LINE>
+// Token<DELIMITER, END OF LINE>
+// Token<DELIMITER, END OF LINE>
+// Token<DELIMITER, END OF LINE>
+// Ident<DELIMITER, "1">
+// Token<DELIMITER, END OF LINE>
+
+
+// Word<KEYWORD, "def">
+// Word<IDENTIFIER, "main">
+// Token<DELIMITER, "(">
+// Word<IDENTIFIER, "name">
+// Token<DELIMITER, ",">
+// Word<IDENTIFIER, "param2">
+// Token<DELIMITER, ")">
+// Token<DELIMITER, ":">
+// Token<DELIMITER, END OF LINE>
+// Ident<DELIMITER, "1">
+// Word<IDENTIFIER, "num">
+// Token<OPERATOR, "=">
+// Integer<NUMBER, "10">
+// Token<OPERATOR, "*">
+// Integer<NUMBER, "3">
+// Token<OPERATOR, "/">
+// Integer<NUMBER, "2">
+// Token<OPERATOR, "**">
+// Integer<NUMBER, "2">
+// Token<DELIMITER, END OF LINE>
+// Ident<DELIMITER, "1">
+// Token<DELIMITER, END OF LINE>
+// Word<IDENTIFIER, "main">
+// Token<DELIMITER, "(">
+// Word<STRING, "pedrito">
+// Token<DELIMITER, ",">
+// Word<STRING, "pedrito2">
+// Token<DELIMITER, ")">
+// Token<DELIMITER, END OF LINE>
+// Token<DELIMITER, END OF LINE>
+// Token<DELIMITER, END OF LINE>
+// Token<DELIMITER, END OF LINE>
+// Token<DELIMITER, END OF LINE>
+// Token<DELIMITER, END OF LINE>
+// Ident<DELIMITER, "1">
+// Token<DELIMITER, END OF LINE>
+
 int main(int argc, char *argv[])
 {
 	for (int i = 1; i < argc; i++) {
@@ -98,14 +171,14 @@ int main(int argc, char *argv[])
 
 	// For the moment process with the lexer
 	std::ifstream source(compiler_params.source_file);
-
+#if 1
 	pyc::Parser parser(source);
 
 	parser.parse();
-	
-	// std::cout << ast << std::endl;
-	
-	// test_lexer(source);
+	std::cout << parser.get_ast() << std::endl; 
+#else
+	test_lexer(source);
+#endif
 	
 	return 0;
 }

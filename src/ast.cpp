@@ -8,6 +8,7 @@ const std::string pyc::TNodeType::tnode_types_str[TNODETYPE_COUNT] = {
 	"term",
 	"call func",
 	"operation",
+	"initialization",
 	"code block",
 	"if statement",
 	"while statement",
@@ -36,7 +37,7 @@ void pyc::AST::append_new_stmt(TNode *stmnt)
 {
 	assert(stmnt != NULL && "Can't be null");
 	assert(curr_block_ != NULL && "It should have a code block");
-	curr_block_->stms.push_back(stmnt);
+	curr_block_->stmnts.push_back(stmnt);
 }
 
 void pyc::AST::pop_block(void)
