@@ -44,6 +44,7 @@ const std::string pyc::TagType::tag_types_str[TAG_COUNT] = {
 	"BREAK",
 	"CONTINUE",
 	"DEF",
+	"PASS",
 	"RETURN",
 	"IDENT",       // Level of identation
 	"\":\"",

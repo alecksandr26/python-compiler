@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <ostream>
+#include <stack>
 #include "token.hpp"
 
 namespace pyc {
@@ -12,12 +13,13 @@ namespace pyc {
 			TERM,
 			CALL,
 			OPER,
+			INIT,
 			BLOCK,
 			IFBLOCK,
 			WHILEBLOCK,
 			FORBLOCK,
 			FUNCBLOCK,
-
+			BLOCKOP,
 			
 			TNODETYPE_COUNT
 		};
@@ -41,8 +43,6 @@ namespace pyc {
 		Token *token;
 
 		// These nodes must be leafs
-		
-		
 		TNodeTerm(void) : TNode(TNodeType::TERM), token(NULL) {}
 	};
 
@@ -64,7 +64,7 @@ namespace pyc {
 
 		// All these operations must have two elements at least, this is not the same for the
 		// real python grammar but what ever this is what it is
-		TNodeTerm *left, *right;
+		TNode *left, *right;
 		
 		TNodeOp(void) : TNode(TNodeType::OPER), token(NULL) {}
 	};
@@ -76,14 +76,16 @@ namespace pyc {
 		Token *token;
 		
 		// The id variable to be define
-		TNodeTerm *var;
+		TNodeTerm *id;
 
 
 		// NOTICE: Then the expression, notice that an expression could a simple term, like
 		// a harcode number, then this pointer could be in reality a TNodeTerm and not a
 		// TNodeOp, rememebr always first check its type, so be alert :)
-		TNodeOp *expr;
+		TNode *expr;
+
 		
+		TNodeInit(void) : TNode(TNodeType::INIT) {}
 	};
 	
 	class TNodeBlock : public TNode {
@@ -94,13 +96,22 @@ namespace pyc {
 		TNodeBlock(void) : TNode(TNodeType::BLOCK), stms(0) {}
 	};
 
+
+	class TNodeBlockOp : public TNode {
+	public:
+		// This will be nodes to represent the keywords to operate with code blocks
+		Token *token;
+		
+		TNodeBlockOp(void) : TNode(TNodeType::BLOCKOP) {}
+	};
+
 	class TNodeIf : public TNode {
 	public:
 		// The if, elif token
 		Token *token;
 		
 		// The condition
-		TNodeOp *cond;
+		TNode *cond;
 
 		// The body of structure all the statments inside of the If
 		TNodeBlock *block;
@@ -120,7 +131,7 @@ namespace pyc {
 		Token *token;
 
 		// The condition
-		TNodeOp *cond;
+		TNode *cond;
 
 		// The body of structure all the statments inside of the If
 		TNodeBlock *block;
@@ -149,8 +160,15 @@ namespace pyc {
 
 	class TNodeFunc : public TNode {
 	public:
+		// TODO: Instaed of putting just the token try to use TNodeTerm's
+		// In the future we could have objec.metho_1() that will be a entire func call
+		// we need to parse the dot points
 		// The name of the function
 		Token *token;
+
+
+
+		std::vector<Token *> params;
 		
 		// The block of code 
 		TNodeBlock *block;
@@ -162,23 +180,35 @@ namespace pyc {
 	
 	class AST {
 	private:
-		
 		// The root node of the whole program
-		TNode *program_;
+		TNodeBlock *program_, *curr_block_;
+		
+
+		// To keep track in which block of code we are constructing
+		std::stack<TNodeBlock *> blocks_;
+		
 		
 	public:
 		AST(void);
+		
+		// IT will stack the previos one
+		void set_new_block(TNodeBlock *block);
+
+		// Appends stmnt to the current block
+		void append_new_stmt(TNode *stmnt);
+
+		
+		// Pops back and move back to the previous code block
+		void pop_block(void);
+		
 		
 		friend std::ostream &operator<<(std::ostream &os, const AST &ast)
 		{
 			os << "AST ---- printing";
 			return os;
 		}
-		
 	};
-	
 }
-
 
 #endif
 

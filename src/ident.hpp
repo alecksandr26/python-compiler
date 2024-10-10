@@ -11,6 +11,9 @@ namespace pyc {
 	public:
 		Ident(const long &ident_level);
 		Ident(void);
+		
+		void set_ident_level(long ident_level);
+		long get_ident_level(void);
 
 		friend std::ostream &operator<<(std::ostream &os, const Ident &ident)
 		{

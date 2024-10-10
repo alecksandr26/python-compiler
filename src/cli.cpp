@@ -23,7 +23,7 @@ struct {
 void test_lexer(std::ifstream &source)
 {
 	pyc::Lexer lexer(source);
-
+	
 	while (lexer.is_token_available()) {
 		const pyc::Token &token = lexer.next_token();
 
@@ -59,6 +59,22 @@ void test_lexer(std::ifstream &source)
 	}
 }
 
+// example2.py:
+// Word<KEYWORD, "def">
+// Word<IDENTIFIER, "main">
+// Token<DELIMITER, "(">
+// Word<IDENTIFIER, "name">
+// Token<DELIMITER, ",">
+// Word<IDENTIFIER, "param2">
+// Token<DELIMITER, ")">
+// Token<DELIMITER, ":">
+// Token<DELIMITER, END OF LINE>
+// Ident<DELIMITER, "1">
+// Word<IDENTIFIER, "pass">
+// Token<DELIMITER, END OF LINE>
+// Token<DELIMITER, END OF LINE>
+// Token<DELIMITER, END OF LINE>
+
 int main(int argc, char *argv[])
 {
 	for (int i = 1; i < argc; i++) {
@@ -83,14 +99,13 @@ int main(int argc, char *argv[])
 	// For the moment process with the lexer
 	std::ifstream source(compiler_params.source_file);
 
-	// pyc::Parser parser(source);
+	pyc::Parser parser(source);
 
-
-	// const pyc::AST &ast = parser.build_ast();
-
+	parser.parse();
+	
 	// std::cout << ast << std::endl;
-
-	test_lexer(source);
+	
+	// test_lexer(source);
 	
 	return 0;
 }

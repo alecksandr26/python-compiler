@@ -53,6 +53,10 @@ pyc::Lexer::Lexer(std::istream &source) : source_(source)
 	keywords_.insert(std::make_pair("in", Word("in", Token(TokenType::KEYWORD, TagType::IN))));
 	keywords_.insert(std::make_pair("def", Word("def", Token(TokenType::KEYWORD, TagType::DEF))));
 	keywords_.insert(std::make_pair("return", Word("return", Token(TokenType::KEYWORD, TagType::RETURN))));
+	keywords_.insert(std::make_pair("break", Word("break", Token(TokenType::KEYWORD, TagType::BREAK))));
+	keywords_.insert(std::make_pair("continue", Word("continue", Token(TokenType::KEYWORD,
+									   TagType::CONTINUE))));
+	keywords_.insert(std::make_pair("pass", Word("pass", Token(TokenType::KEYWORD, TagType::PASS))));
 
 	// Boolean operations keywords
 	keywords_.insert(std::make_pair("and", Word("and", Token(TokenType::OPERATOR, TagType::AND))));
@@ -62,7 +66,7 @@ pyc::Lexer::Lexer(std::istream &source) : source_(source)
 	// Initial program Token
 	
 
-	line_ = 0;
+	line_ = 1;
 	peek_ = '\0';
 }
 
@@ -306,8 +310,8 @@ const Token &pyc::Lexer::next_token(void)
 
 	case '\n':
 		line_++;
-		[[fallthrough]];  // Intentional fallthrough
-	case ';':
+		// [[fallthrough]];  // Intentional fallthrough
+	// case ';': // Probably for the future but right now none of this shit
 		readch();
 		token_seq_.push_back(&Token::end_of_line);
 		return *token_seq_.back();

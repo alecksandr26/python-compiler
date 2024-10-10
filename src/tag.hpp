@@ -48,6 +48,7 @@ namespace pyc {
 			BREAK,
 			CONTINUE,
 			DEF,	// functions
+			PASS,
 			RETURN, 
 			IDENT,	// Level of identation
 			TWO_POINTS, // Python indentation two points ":"
