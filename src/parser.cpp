@@ -72,8 +72,10 @@
 
 using namespace pyc;
 
+// TODO: Build proper expections
+
 // Create also the lexer with the source file
-pyc::Parser::Parser(std::istream &source) : lexer_(source), curr_token_(Token::unknown)
+pyc::Parser::Parser(std::istream &source) : lexer_(source), curr_token_(NULL)
 {
 	
 }
@@ -81,7 +83,7 @@ pyc::Parser::Parser(std::istream &source) : lexer_(source), curr_token_(Token::u
 void pyc::Parser::advance_(void)
 {
 	if (lexer_.is_token_available()) {
-		curr_token_ = lexer_.next_token();
+		curr_token_ = &lexer_.next_token();
 		return;
 	}
 	
@@ -91,7 +93,7 @@ void pyc::Parser::advance_(void)
 bool pyc::Parser::match_(Token token)
 {
 	// Asserts the actual token
-	return (token.get_type() == curr_token_.get_type()) and (token.get_tag() == curr_token_.get_tag());
+	return (token.get_type() == curr_token_->get_type()) and (token.get_tag() == curr_token_->get_tag());
 }
 
 void pyc::Parser::func_stmnt_(void)
@@ -108,7 +110,7 @@ void pyc::Parser::func_stmnt_(void)
 		assert(0);
 	}
 
-	node->token = &curr_token_;
+	node->token = curr_token_;
 	
 	// Parse the params
 	advance_();
@@ -120,8 +122,8 @@ void pyc::Parser::func_stmnt_(void)
 	
 	advance_();
 	while (match_(Token(TokenType::IDENTIFIER, TagType::ID))) {
-		node->params.push_back(&curr_token_);
-
+		node->params.push_back(curr_token_);
+		
 		advance_();
 		if (match_(Token::comma)) {
 			advance_();
@@ -157,7 +159,7 @@ void pyc::Parser::func_stmnt_(void)
 	
 	// Create a new ident level
 	curr_ident_.set_ident_level(curr_ident_.get_ident_level() + 1);
-	
+	advance_();
 }
 
 void pyc::Parser::block_op_stmnt_(void)
@@ -171,24 +173,32 @@ void pyc::Parser::block_op_stmnt_(void)
 			  << lexer_.get_line() << std::endl;
 		assert(0);
 	}
+
+	
 	
 	TNodeBlockOp *node = new TNodeBlockOp();
-	node->token = &curr_token_;
+	node->token = curr_token_;
 	ast_.append_new_stmt(node);
+	node->expr = NULL;
+	
+	advance_();
+	if (node->token->get_tag() == TagType::RETURN)
+		node->expr = cond_op_expr_();
+
 }
 
 TNode *pyc::Parser::term_(void)
 {
 	TNode *term = NULL;
-	switch (curr_token_.get_type()) {
+	switch (curr_token_->get_type()) {
 	case TokenType::NUMBER:
-		switch (curr_token_.get_tag()) {
+		switch (curr_token_->get_tag()) {
 		case TagType::INTEGER:
 		case TagType::REAL:
 			{
 				term = new TNodeTerm();
 				// Weird fucked up cast expression
-				(static_cast<TNodeTerm *>(term))->token = &curr_token_;
+				(static_cast<TNodeTerm *>(term))->token = curr_token_;
 			}
 			break;
 		default:
@@ -205,13 +215,13 @@ TNode *pyc::Parser::term_(void)
 			// TODO: Parse the functionality of formating strings in python here
 			term = new TNodeTerm();
 			// Weird fucked up cast expression
-			(static_cast<TNodeTerm *>(term))->token = &curr_token_;
+			(static_cast<TNodeTerm *>(term))->token = curr_token_;
 			advance_();
 		}		
 		break;
 	case TokenType::IDENTIFIER: // Could be a function call
 		{
-			Token *id_token = &curr_token_;
+			const Token *id_token = curr_token_;
 			advance_();
 			if (!match_(Token::lparen)) { // if it is not a function call then it should be a var
 				term = new TNodeTerm();
@@ -231,7 +241,14 @@ TNode *pyc::Parser::term_(void)
 		}
 		advance_();
 		// Then parse another expression here
-		term = expr_();
+		term = cond_op_expr_();
+		if (!match_(Token::rparen)) {
+			std::cerr << "Error: Expecting a close parem ')' closing the expression in line "
+				  << lexer_.get_line() << std::endl;
+			assert(0);
+		}
+		advance_();
+		
 		break;
 	default:
 		std::cerr << "Error: Uknow token term in line "
@@ -250,15 +267,15 @@ TNode *pyc::Parser::exp_(void)
 	assert(node_exp != NULL && "Can't be null baby");
 
 	// we have a while loop because of what happend if '2 ** 3 ** 4'
-	while (curr_token_.get_type() == TokenType::OPERATOR
-	       and curr_token_.get_tag() == TagType::POW) {
+	while (curr_token_->get_type() == TokenType::OPERATOR
+	       and curr_token_->get_tag() == TagType::POW) {
 		// Each time we find out an operation we need to find out another term
 
 		// Captures the current node 
 		TNode *temp = node_exp;
 
 		node_exp = new TNodeOp();
-		static_cast<TNodeOp *>(node_exp)->token = &curr_token_;
+		static_cast<TNodeOp *>(node_exp)->token = curr_token_;
 		static_cast<TNodeOp *>(node_exp)->left = temp;
 
 		// And find out the other pointer it could be another expression we don't know it jijiji
@@ -278,14 +295,14 @@ TNode *pyc::Parser::factor_(void)
 
 	// Solving operations hierarchy for '*', '/',  and '%', we need another layer for '**'
 	// Again while because of the chain operations '2 * 1 / 2 % 3'
-	while (curr_token_.get_type() == TokenType::OPERATOR
-	       and (curr_token_.get_tag() == TagType::MUL
-		    or curr_token_.get_tag() == TagType::DIV
-		    or curr_token_.get_type() == TagType::MOD)) {
+	while (curr_token_->get_type() == TokenType::OPERATOR
+	       and (curr_token_->get_tag() == TagType::MUL
+		    or curr_token_->get_tag() == TagType::DIV
+		    or curr_token_->get_type() == TagType::MOD)) {
 		TNode *temp = node_fac;
 
 		node_fac = new TNodeOp();
-		static_cast<TNodeOp *>(node_fac)->token = &curr_token_;
+		static_cast<TNodeOp *>(node_fac)->token = curr_token_;
 		static_cast<TNodeOp *>(node_fac)->left = temp;
 
 		// So yeas again recursion my friend
@@ -303,13 +320,13 @@ TNode *pyc::Parser::expr_(void)
 	assert(node_expr != NULL && "Can't have a node expr null");
 
 	// Basically the same frame of code
-	while (curr_token_.get_type() == TokenType::OPERATOR
-	       and (curr_token_.get_tag() == TagType::ADD
-		    or curr_token_.get_tag() == TagType::SUB)) {
+	while (curr_token_->get_type() == TokenType::OPERATOR
+	       and (curr_token_->get_tag() == TagType::ADD
+		    or curr_token_->get_tag() == TagType::SUB)) {
 		TNode *temp = node_expr;
 
 		node_expr = new TNodeOp();
-		static_cast<TNodeOp *>(node_expr)->token = &curr_token_;
+		static_cast<TNodeOp *>(node_expr)->token = curr_token_;
 		static_cast<TNodeOp *>(node_expr)->left = temp;
 
 		// So yeas again recursion my friend, so fucked up, my brain suffers of damage
@@ -320,7 +337,7 @@ TNode *pyc::Parser::expr_(void)
 	return node_expr;
 }
 
-void pyc::Parser::init_stmnt_(Token *id_token)
+void pyc::Parser::init_stmnt_(const Token *id_token)
 {
 	assert(id_token != NULL && "Can't receive null pointers");
 	if (!match_(Token::init)) {
@@ -332,21 +349,20 @@ void pyc::Parser::init_stmnt_(Token *id_token)
 	TNodeInit *node_init = new TNodeInit();
 	TNodeTerm *node_term = new TNodeTerm();
 	node_term->token = id_token;
-	node_init->token = &curr_token_;
+	node_init->token = curr_token_;
 	node_init->id = node_term;
 	
 	advance_();
 	
 	// Parse an expression -> an expression could contain functions calls operations etc ... etc ..
-	node_init->expr = expr_();
+	node_init->expr = cond_op_expr_();
 	assert(node_init->expr != NULL && "Should not return an null expression tree");
 	ast_.append_new_stmt(static_cast<TNode *>(node_init));
 }
 
 
-TNode * pyc::Parser::func_call_(Token *id_token)
+TNode * pyc::Parser::func_call_(const Token *id_token)
 {
-	// TODO: you left it here
 	if (!match_(Token::lparen)) {
 		std::cerr << "Error: expect to have an left parentheses '(' "
 			"in line " << lexer_.get_line() << std::endl;		
@@ -360,7 +376,7 @@ TNode * pyc::Parser::func_call_(Token *id_token)
 	advance_();
 	while (!match_(Token::rparen)) {
 		// Here we could parse an entire new expression
-		TNode *arg_expr = expr_();
+		TNode *arg_expr = cond_op_expr_();
 		node->args.push_back(arg_expr);
 		
 		if (match_(Token::comma)) {
@@ -373,12 +389,14 @@ TNode * pyc::Parser::func_call_(Token *id_token)
 			}
 		}
 	}
+
+	
 	// Move to the next token probably an end of line or something like that
 	advance_();
 	return static_cast<TNode *>(node);
 }
 
-void pyc::Parser::func_call_stmnt_(Token *id_token)
+void pyc::Parser::func_call_stmnt_(const Token *id_token)
 {
 	assert(id_token != NULL && "Can't receive a null pointer");
 	TNodeCall *node_call = static_cast<TNodeCall *>(func_call_(id_token));
@@ -386,21 +404,109 @@ void pyc::Parser::func_call_stmnt_(Token *id_token)
 	ast_.append_new_stmt(static_cast<TNode *>(node_call));
 }
 
+
+TNode *pyc::Parser::cond_cmp_expr_(void)
+{
+	TNode *node_cmp_expr = expr_();
+
+	// Parse the comparision expressions
+	while (curr_token_->get_type() == TokenType::OPERATOR
+	       and (curr_token_->get_tag() == TagType::EQ
+		    or curr_token_->get_tag() == TagType::NEQ
+		    or curr_token_->get_tag() == TagType::GT
+		    or curr_token_->get_tag() == TagType::GE
+		    or curr_token_->get_tag() == TagType::LT
+		    or curr_token_->get_tag() == TagType::LE)) {
+		TNode *temp = node_cmp_expr;
+
+		node_cmp_expr = new TNodeOp();
+		static_cast<TNodeOp *>(node_cmp_expr)->token = curr_token_;
+		static_cast<TNodeOp *>(node_cmp_expr)->left = temp;
+		
+		advance_();
+		static_cast<TNodeOp *>(node_cmp_expr)->right = expr_();
+	}
+	
+	return node_cmp_expr;
+}
+
+TNode *pyc::Parser::cond_op_expr_(void)
+{
+
+	TNode *node_op_expr;
+	if (curr_token_->get_tag() == TagType::NOT) {
+		do {
+			node_op_expr = new TNodeOp();
+			// The not keyword is different and it needs to follow this order
+			static_cast<TNodeOp *>(node_op_expr)->left = NULL;
+			static_cast<TNodeOp *>(node_op_expr)->token = curr_token_;
+			
+			// Advance to the next expression
+			advance_();
+			static_cast<TNodeOp *>(node_op_expr)->right = cond_op_expr_();
+		} while (curr_token_->get_tag() == TagType::NOT);
+	} else {
+		node_op_expr = cond_cmp_expr_();
+		while (curr_token_->get_type() == TokenType::OPERATOR
+		       and (curr_token_->get_tag() == TagType::AND
+			    or curr_token_->get_tag() == TagType::OR)) {
+			TNode *temp = node_op_expr;
+
+			node_op_expr = new TNodeOp();
+			
+			static_cast<TNodeOp *>(node_op_expr)->token = curr_token_;
+			static_cast<TNodeOp *>(node_op_expr)->left = temp;
+		
+			advance_();
+			static_cast<TNodeOp *>(node_op_expr)->right = cond_cmp_expr_();
+		}
+	}
+
+	return node_op_expr;
+}
+
+void pyc::Parser::if_stmnt_(void)
+{
+	TNodeIf *node = new TNodeIf();
+	node->token = curr_token_; // Catch the if statement
+
+	// Parse the conditional expression
+	advance_();
+	node->cond = cond_op_expr_();
+
+	// Sincie it is a new code block
+	if (!match_(Token::two_points)) {
+		std::cerr << "Error: expect to have an initialization of a code block ':' for a "
+			"if definition in line "
+			  << lexer_.get_line() << std::endl;
+		assert(0);
+	}
+
+	// Create the new code block
+	node->block = new TNodeBlock();
+	ast_.append_new_stmt(node);
+	ast_.set_new_block(node->block);
+	
+	// Create a new ident level
+	curr_ident_.set_ident_level(curr_ident_.get_ident_level() + 1);
+
+	advance_();
+}
+
 void pyc::Parser::stmnt_(void)
 {
 	// Can't be an unknow token at this stage
-	assert(curr_token_.get_type() != TokenType::UNKNOWN);
+	assert(curr_token_->get_type() != TokenType::UNKNOWN);
 
-	std::cout << "Next token statement to parse: " << curr_token_ << std::endl;
+	std::cout << "Next token statement to parse: " << *curr_token_ << std::endl;
 
-	switch (curr_token_.get_type()) {
+	switch (curr_token_->get_type()) {
 	case TokenType::KEYWORD:
 		// Keywords of an structure
-		switch (curr_token_.get_tag()) {
+		switch (curr_token_->get_tag()) {
 		case TagType::DEF:
 			// A function definition
 			func_stmnt_();
-			advance_();
 			break;
 			
 		case TagType::PASS:
@@ -408,7 +514,9 @@ void pyc::Parser::stmnt_(void)
 		case TagType::BREAK:
 		case TagType::CONTINUE:
 			block_op_stmnt_();
-			advance_();
+			break;
+		case TagType::IF:
+			if_stmnt_();
 			break;
 		}
 		
@@ -416,7 +524,7 @@ void pyc::Parser::stmnt_(void)
 	case TokenType::IDENTIFIER:
 		// a functon call ?, or initialization of a variable
 		{		// New block
-			Token *id_token = &curr_token_; // catchs the current token
+			const Token *id_token = curr_token_; // catchs the current token
 
 
 			// Advance to notice the next token
@@ -436,14 +544,14 @@ void pyc::Parser::stmnt_(void)
 		// A blank line or could be any other thing
 
 		// End of the line
-		if (curr_token_.get_tag() == TagType::EOL)
+		if (curr_token_->get_tag() == TagType::EOL)
 			return;
 		break;
 	}
 }
 
 
-void pyc::Parser::block_(void)
+void pyc::Parser::parse_(void)
 {
 	if (curr_ident_.get_ident_level() > 0 ) {
 		if (!match_(curr_ident_)) {
@@ -457,8 +565,8 @@ void pyc::Parser::block_(void)
 	}
 
 	for ( ; lexer_.is_token_available(); advance_()) {
-		if (curr_token_.get_tag() == TagType::IDENT) {
-			Ident *actual_ident = static_cast<Ident *>(&curr_token_);
+		if (curr_token_->get_tag() == TagType::IDENT) {
+			const Ident *actual_ident = static_cast<const Ident *>(curr_token_);
 			if (actual_ident->get_ident_level() < curr_ident_.get_ident_level()) {
 				// Move to previous code block by the given identation
 				for (long n = curr_ident_.get_ident_level();
@@ -467,8 +575,6 @@ void pyc::Parser::block_(void)
 				
 				
 				curr_ident_.set_ident_level(actual_ident->get_ident_level());
-				// Finish with parsing the block
-				return;
 			}
 			advance_();
 		} else {
@@ -476,13 +582,12 @@ void pyc::Parser::block_(void)
 				ast_.pop_block();
 			curr_ident_.set_ident_level(0);
 		}
-
+		
 		if (match_(Token::end_of_line)) {
 			if (!lexer_.is_token_available())
 				break;
 			continue;
 		}
-
 		
 		stmnt_();
 		
@@ -500,15 +605,15 @@ void pyc::Parser::block_(void)
 
 void pyc::Parser::parse(void)
 {
+	// TODO: Refactor this shit
 	if (!lexer_.is_token_available())
 		assert(0 && "There isn't tokens to parse");
-
+	
 	// Read the first tokenu
 	advance_();
 	
-	// Parse the main block
-	
-	block_();
+	// Init the parser
+	parse_();
 }
 
 const AST &pyc::Parser::get_ast(void) const

@@ -1,8 +1,8 @@
 #include <cassert>
 #include "ast.hpp"
 
-
 using namespace pyc;
+
 
 const std::string pyc::TNodeType::tnode_types_str[TNODETYPE_COUNT] = {
 	"term",
@@ -17,12 +17,12 @@ const std::string pyc::TNodeType::tnode_types_str[TNODETYPE_COUNT] = {
 	"block operation",
 };
 
+
 pyc::AST::AST(void)
 {
 	curr_block_ = program_ = new TNodeBlock();
 	
 }
-
 
 void pyc::AST::set_new_block(TNodeBlock *new_block)
 {
@@ -45,3 +45,84 @@ void pyc::AST::pop_block(void)
 	curr_block_ = blocks_.top();
 	blocks_.pop();
 }
+
+std::stringstream pyc::ast_fetch_stream_node(TNode *node)
+{
+	std::stringstream ss;
+	
+	switch (node->type) {
+	case TNodeType::TERM:
+		{
+			const TNodeTerm *term = static_cast<TNodeTerm *>(node);
+			ss << *term;
+		}
+		break;
+	case TNodeType::CALL:
+		{
+			const TNodeCall *call = static_cast<TNodeCall *>(node);
+			ss << *call;
+		}
+		break;
+	case TNodeType::OPER:
+		{
+			const TNodeOp *op = static_cast<TNodeOp *>(node);
+			ss << *op;
+		}
+		break;
+	case TNodeType::INIT:
+		{
+			const TNodeInit *init = static_cast<TNodeInit *>(node);
+			ss << *init;
+		}
+		break;
+	case TNodeType::BLOCK:
+		{
+			const TNodeBlock *block = static_cast<TNodeBlock *>(node);
+			ss << *block;
+		}
+		break;
+	case TNodeType::BLOCKOP:
+		{
+			const TNodeBlockOp *block_op = static_cast<TNodeBlockOp *>(node);
+			ss << *block_op;
+		}
+		break;
+	case TNodeType::IFBLOCK:
+		{
+			const TNodeIf *if_block = static_cast<TNodeIf *>(node);
+			ss << *if_block;
+		}
+		break;					
+	case TNodeType::WHILEBLOCK:
+		{
+			const TNodeIf *if_block = static_cast<TNodeIf *>(node);
+			ss << *if_block;
+		}
+		break;
+	case TNodeType::FORBLOCK:
+		{
+			const TNodeFor *for_block = static_cast<TNodeFor *>(node);
+			ss << *for_block;
+		}
+		break;
+	case TNodeType::FUNCBLOCK:
+		{
+			const TNodeFunc *func_block = static_cast<TNodeFunc *>(node);
+			ss << *func_block;
+		}
+		break;
+	}
+
+	std::stringstream ssout;
+	std::string line;
+	
+	// Add a tab for each node
+	while (std::getline(ss, line)) {
+		// Add a tab for each node printing
+		ssout << '\t' << line << '\n';
+	}
+	
+	
+	return ssout;
+}
+

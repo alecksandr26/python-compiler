@@ -11,7 +11,7 @@ namespace pyc {
 	class Parser {
 	private:
 		Lexer lexer_;
-		Token &curr_token_;
+		const Token *curr_token_;
 		AST ast_;
 		Ident curr_ident_;
 		
@@ -26,17 +26,21 @@ namespace pyc {
 		TNode *factor_(void); // It will return a parsed factor
 		TNode *expr_(void); // it will return a tree with the parsed expression
 
+		// To parse boolean expressions
+		TNode *cond_cmp_expr_(void);
+		TNode *cond_op_expr_(void);
+
 		// To parse a simple function call with params, and then return the node
-		TNode *func_call_(Token *id_token);
+		TNode *func_call_(const Token *id_token);
 		
 		// To parse a line, goind deep with tis expressions, factor until reach the term
 		void stmnt_(void);
 
 		// To parse the different types of initialization '='
-		void init_stmnt_(Token *id_token);
+		void init_stmnt_(const Token *id_token);
 
 		// It will parse a new code block
-		void block_(void);
+		void parse_(void);
 		
 		// To parser block operations: like return, continue, break, pass
 		void block_op_stmnt_(void);
@@ -52,7 +56,7 @@ namespace pyc {
 
 		// To parse the arguments and the fucntion call
 
-		void func_call_stmnt_(Token *id_token);
+		void func_call_stmnt_(const Token *id_token);
 
 		
 	public:

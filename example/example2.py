@@ -1,7 +1,11 @@
-def main(name, param2):
-    num = 10 * 3 / 2 ** 2
-    
-main("pedrito", "pedrito2")
+
+
+def func():
+    if 1 == 1:
+        return 0
+    return (1 == 1)
+print("Hello there")
+
 
 
 

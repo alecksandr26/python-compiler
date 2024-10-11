@@ -19,7 +19,7 @@ void pyc::Ident::set_ident_level(long ident_level)
 	ident_level_ = ident_level;
 }
 
-long pyc::Ident::get_ident_level(void)
+long pyc::Ident::get_ident_level(void) const
 {
 	return ident_level_;
 }

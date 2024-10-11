@@ -9,6 +9,9 @@
 #include <string>
 
 #include "token.hpp"
+#include "word.hpp"
+#include "integer.hpp"
+#include "real.hpp"
 
 namespace pyc {
 	class TNodeType {
@@ -31,20 +34,19 @@ namespace pyc {
 		static const std::string tnode_types_str[];
 	};
 
-
-	
 	class TNode {
 	public:
 		uint8_t type;
 		TNode(uint8_t type) : type(type) {}
 	};
-
+	
+	std::stringstream ast_fetch_stream_node(TNode *node);
 
 	class TNodeTerm : public TNode {
 	public:
 		// Number, String literals, Bool, None, Id (Variables or names or functions) or
 		// if token is null means that it is an expression
-		Token *token;
+		const Token *token;
 
 		// These nodes must be leafs
 		TNodeTerm(void) : TNode(TNodeType::TERM), token(NULL) {}
@@ -53,7 +55,37 @@ namespace pyc {
 		friend std::ostream &operator<<(std::ostream &os, const TNodeTerm &node)
 		{
 			os << "<TNodeTerm>\n";
-			os << '\t' << node.token << '\n';
+			switch (node.token->get_type()) {
+			case TokenType::STRING:
+			case TokenType::IDENTIFIER:
+				{
+					const Word *word = static_cast<const Word *>(node.token);
+					os << '\t' << *word << '\n';
+				}
+				break;
+			case TokenType::NUMBER:
+				switch (node.token->get_tag()) {
+				case TagType::INTEGER:
+					{
+						const Integer *integer = \
+							static_cast<const Integer *>(node.token);
+						os << '\t' << *integer << '\n';
+					}
+					break;
+				case TagType::REAL:
+					{
+						const Real *real = static_cast<const Real *>(node.token);
+						os << '\t' << *real << '\n';
+					}
+					break;					
+				}
+				break;
+			default:
+				// This could fail
+				os << '\t' << *node.token << '\n';
+				break;
+			}
+			
 			os << "<EndTNodeTerm>\n";
 			return os;
 		}
@@ -62,7 +94,7 @@ namespace pyc {
 	class TNodeCall : public TNode {
 	public:
 		// Must to be word name
-		Token *token;
+		const Token *token;
 
 		// These nodes must be leaf
 		std::vector<TNode *> args;
@@ -73,7 +105,22 @@ namespace pyc {
 		friend std::ostream &operator<<(std::ostream &os, const TNodeCall &call)
 		{
 			os << "<TNodeCall>\n";
-			os << '\t' << call.token << '\n';
+			assert(call.token->get_type() == TokenType::IDENTIFIER && "It must be an identifier");
+			const Word *word = static_cast<const Word *>(call.token);
+			os << '\t' << *word << '\n';
+
+			os << '\t' << "<Arguments>" << '\n';
+
+			for (TNode *node : call.args) {
+				std::stringstream ss = ast_fetch_stream_node(node);
+				std::string line;
+				// Add another tab for each line, to ident the arguments sectionc
+				while (std::getline(ss, line)) {
+					os << '\t' << line << '\n';
+				}
+			}
+			os << '\t' << "<EndArguments>" << '\n';
+			
 			os << "<EndTNodeCall>\n";
 			return os;
 		}
@@ -83,7 +130,7 @@ namespace pyc {
 	class TNodeOp : public TNode {
 	public:
 		// Arithmetic And Boolean Operations
-		Token *token;
+		const Token *token;
 
 		// All these operations must have two elements at least, this is not the same for the
 		// real python grammar but what ever this is what it is
@@ -94,7 +141,13 @@ namespace pyc {
 		friend std::ostream &operator<<(std::ostream &os, const TNodeOp &op)
 		{
 			os << "<TNodeOp>\n";
-			os << '\t' << op.token << '\n';
+			
+			assert(op.token->get_type() == TokenType::OPERATOR && "It must be an operator");
+
+			os << ast_fetch_stream_node(op.left).str();
+			os << '\t' << *op.token << '\n';
+			os << ast_fetch_stream_node(op.right).str();
+			
 			os << "<EndTNodeOp>\n";
 			return os;
 		}
@@ -104,7 +157,7 @@ namespace pyc {
 	class TNodeInit : public TNode {
 	public:
 		// The '=' assign token
-		Token *token;
+		const Token *token;
 		
 		// The id variable to be define
 		TNodeTerm *id;
@@ -121,7 +174,15 @@ namespace pyc {
 		friend std::ostream &operator<<(std::ostream &os, const TNodeInit &init)
 		{
 			os << "<TNodeInit>\n";
-			os << '\t' << init.token << '\n';
+
+			// Must be the token '='
+			assert(init.token->get_type() == TokenType::OPERATOR
+			       && init.token->get_tag() == TagType::INIT);
+
+			os << ast_fetch_stream_node(init.id).str();			
+			os << '\t' << *init.token << '\n';
+			os << ast_fetch_stream_node(init.expr).str();
+			
 			os << "<EndTNodeInit>\n";
 			return os;
 		}
@@ -137,7 +198,12 @@ namespace pyc {
 		friend std::ostream &operator<<(std::ostream &os, const TNodeBlock &block)
 		{
 			os << "<TNodeBlock>\n";
-			os << '\t' << "address: " << &block << '\n';
+
+			for (TNode *node : block.stmnts) {
+				std::stringstream ss = ast_fetch_stream_node(node);
+				os << ss.str();
+			}
+			
 			os << "<EndTNodeBlock>\n";
 			return os;
 		}
@@ -147,14 +213,26 @@ namespace pyc {
 	class TNodeBlockOp : public TNode {
 	public:
 		// This will be nodes to represent the keywords to operate with code blocks
-		Token *token;
+		const Token *token;
+
+		// This coulde be null because only the 'return' could have an expression
+
+		TNode *expr;
 		
 		TNodeBlockOp(void) : TNode(TNodeType::BLOCKOP) {}
 
 		friend std::ostream &operator<<(std::ostream &os, const TNodeBlockOp &block_op)
 		{
 			os << "<TNodeBlockOp>\n";
-			os << '\t' << block_op.token << '\n';
+			assert(block_op.token->get_type() == TokenType::KEYWORD);
+			const Word *word = static_cast<const Word *>(block_op.token);
+			os << '\t' << *word << '\n';
+			if (block_op.token->get_tag() == TagType::RETURN) {
+				assert(block_op.expr != NULL && "Since it is a return must to have an expr");
+				std::stringstream ss = ast_fetch_stream_node(block_op.expr);
+				os << ss.str();
+			}
+				
 			os << "<EndTNodeBlockOp>\n";
 			return os;
 		}
@@ -163,7 +241,7 @@ namespace pyc {
 	class TNodeIf : public TNode {
 	public:
 		// The if, elif token
-		Token *token;
+		const Token *token;
 		
 		// The condition
 		TNode *cond;
@@ -181,7 +259,22 @@ namespace pyc {
 		friend std::ostream &operator<<(std::ostream &os, const TNodeIf &if_block)
 		{
 			os << "<TNodeIf>\n";
-			os << '\t' << if_block.token << '\n';
+			const Word *word = static_cast<const Word *>(if_block.token);
+			os << '\t' << *word << '\n';
+			os << '\t' << "<Cond>" << '\n';
+			// So print the condition
+			std::stringstream ss = ast_fetch_stream_node(if_block.cond);
+			std::string line;
+			while (std::getline(ss, line)) {
+				os << '\t' << line << '\n';
+			}
+			os << '\t' << "<EndCond>" << '\n';
+			
+			// Print the code block
+			ss = ast_fetch_stream_node(if_block.block);
+			os << ss.str();
+			
+			
 			os << "<EndTNodeIf>\n";
 			return os;
 		}
@@ -191,7 +284,7 @@ namespace pyc {
 	class TNodeWhile : public TNode {
 	public:
 		// The while token
-		Token *token;
+		const Token *token;
 
 		// The condition
 		TNode *cond;
@@ -215,7 +308,7 @@ namespace pyc {
 	class TNodeFor : public TNode {
 	public:
 		// For token
-		Token *token;
+		const Token *token;
 		// IDK how this thing will work, but i think it should be something like this
 
 		// The iterable element
@@ -244,10 +337,10 @@ namespace pyc {
 		// In the future we could have objec.metho_1() that will be a entire func call
 		// we need to parse the dot points
 		// The name of the function
-		Token *token;
+		const Token *token;
 		
 
-		std::vector<Token *> params;
+		std::vector<const Token *> params;
 		
 		// The block of code 
 		TNodeBlock *block;
@@ -257,13 +350,29 @@ namespace pyc {
 		friend std::ostream &operator<<(std::ostream &os, const TNodeFunc &func_block)
 		{
 			os << "<TNodeFunc>\n";
-			os << '\t' << func_block.token << '\n';
+			
+			assert(func_block.token->get_type() == TokenType::IDENTIFIER
+			       && "It must be an identifier");
+			
+			
+			const Word *word = static_cast<const Word *>(func_block.token);
+			os << '\t' << *word << '\n';
+
+			// Print the params for this function
+			os << '\t' << "<Params>" << '\n';
+			for (const Token *token : func_block.params) {
+				const Word *param = static_cast<const Word *>(token);
+				os << '\t' << '\t' << *param << '\n';
+			}
+			os << '\t' << "<EndParams>" << '\n';
+			// Print the code block
+			std::stringstream ss = ast_fetch_stream_node(func_block.block);
+			os << ss.str();
+
 			os << "<EndTNodeFunc>\n";
 			return os;
 		}
 	};
-	
-	
 	
 	class AST {
 	private:
@@ -287,98 +396,23 @@ namespace pyc {
 		
 		// Pops back and move back to the previous code block
 		void pop_block(void);
+
 		
-
-
 		// TODO: we need to have a global function kind of static function
 		// To print this asbtract syntax tree
 		
 		friend std::ostream &operator<<(std::ostream &os, const AST &ast)
 		{
-			long level = 1;
+
 			
 			assert(ast.program_ != NULL && "Can't be null");
 			
 			os << "<Program>" << '\n';
 			
-			// Create an stream
-			std::stringstream ss;
-			
-			for (TNode *stmnt : ast.program_->stmnts) {
-				switch (stmnt->type) {
-				case TNodeType::TERM:
-					{
-						const TNodeTerm *term = static_cast<TNodeTerm *>(stmnt);
-						ss << *term;
-					}
-					break;
-				case TNodeType::CALL:
-					{
-						const TNodeCall *call = static_cast<TNodeCall *>(stmnt);
-						ss << *call;
-					}
-					break;
-				case TNodeType::OPER:
-					{
-						const TNodeOp *op = static_cast<TNodeOp *>(stmnt);
-						ss << *op;
-					}
-					break;
-				case TNodeType::INIT:
-					{
-						const TNodeInit *init = static_cast<TNodeInit *>(stmnt);
-						ss << *init;
-					}
-					break;
-				case TNodeType::BLOCK:
-					{
-						const TNodeBlock *block = static_cast<TNodeBlock *>(stmnt);
-						ss << *block;
-					}
-					break;
-				case TNodeType::BLOCKOP:
-					{
-						const TNodeBlockOp *block_op = static_cast<TNodeBlockOp *>(stmnt);
-						ss << *block_op;
-					}
-					break;
-				case TNodeType::IFBLOCK:
-					{
-						const TNodeIf *if_block = static_cast<TNodeIf *>(stmnt);
-						ss << *if_block;
-					}
-					break;					
-				case TNodeType::WHILEBLOCK:
-					{
-						const TNodeIf *if_block = static_cast<TNodeIf *>(stmnt);
-						ss << *if_block;
-					}
-					break;
-				case TNodeType::FORBLOCK:
-					{
-						const TNodeFor *for_block = static_cast<TNodeFor *>(stmnt);
-						ss << *for_block;
-					}
-					break;
-				case TNodeType::FUNCBLOCK:
-					{
-						const TNodeFunc *func_block = static_cast<TNodeFunc *>(stmnt);
-						ss << *func_block;
-					}
-					break;
-				}
+			for (TNode *node : ast.program_->stmnts) {
+				std::stringstream ss = ast_fetch_stream_node(node);
+				os << ss.str();
 			}
-
-			// Build kind of identation for each node to generate kind of tag representaion
-			std::string line;
-			std::string tabs(level, '\t');  // Create a string with 'level' number of tabs
-
-			// Read the input stream line by line
-			while (std::getline(ss, line)) {
-				// Append the level number of tabs and print the line
-				os << tabs << line << '\n';
-			}
-			
 			
 			os << "<EndProgram>" << '\n';
 			

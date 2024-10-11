@@ -13,7 +13,7 @@ namespace pyc {
 		Ident(void);
 		
 		void set_ident_level(long ident_level);
-		long get_ident_level(void);
+		long get_ident_level(void) const;
 
 		friend std::ostream &operator<<(std::ostream &os, const Ident &ident)
 		{
