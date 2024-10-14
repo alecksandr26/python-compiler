@@ -154,12 +154,31 @@ void pyc::Parser::func_stmnt_(void)
 
 	// Append the new code block
 	node->block = new TNodeBlock();
-	ast_.append_new_stmt(node);
+	ast_.append_new_stmnt(node);
 	ast_.set_new_block(node->block);
 	
 	// Create a new ident level
 	curr_ident_.set_ident_level(curr_ident_.get_ident_level() + 1);
 	advance_();
+
+	if (not match_(Token::end_of_line)) {
+		std::cerr << "Error: expect to have an end of line of a statement "
+			"in line "
+			  << lexer_.get_line() << std::endl;
+		assert(0);
+	}
+
+	advance_();
+
+	// We start parsing the block of code of the if statement
+	block_();
+
+	if (not match_(Token::end_of_line) and not match_(curr_ident_)) {
+		std::cerr << "Error: expect to have an end of line of a statement or a new ident block"
+			"in line "
+			  << lexer_.get_line() << std::endl;
+		assert(0);
+	}
 }
 
 void pyc::Parser::block_op_stmnt_(void)
@@ -178,7 +197,7 @@ void pyc::Parser::block_op_stmnt_(void)
 	
 	TNodeBlockOp *node = new TNodeBlockOp();
 	node->token = curr_token_;
-	ast_.append_new_stmt(node);
+	ast_.append_new_stmnt(node);
 	node->expr = NULL;
 	
 	advance_();
@@ -226,7 +245,7 @@ TNode *pyc::Parser::term_(void)
 			if (!match_(Token::lparen)) { // if it is not a function call then it should be a var
 				term = new TNodeTerm();
 				(static_cast<TNodeTerm *>(term))->token = id_token;
-				advance_();
+				// advance_(); Not sure f this think will break the program
 			}  else
 				term = func_call_(id_token); // Is a function call
 		}
@@ -250,8 +269,21 @@ TNode *pyc::Parser::term_(void)
 		advance_();
 		
 		break;
+
+	case TokenType::KEYWORD:
+		if (not (curr_token_->get_tag() == TagType::TRUE or curr_token_->get_tag() == TagType::FALSE)) {
+			std::cerr << "Error: Expecing True or False in line "
+				  << lexer_.get_line() << std::endl;
+			assert(0);
+		} else {
+			term = new TNodeTerm();
+			(static_cast<TNodeTerm *>(term))->token = curr_token_;
+			advance_();
+		}
+		break;
 	default:
-		std::cerr << "Error: Uknow token term in line "
+		std::cerr << "Error: As a term it expect to be Identifier, Number, String, or Delimiter '(',"
+			" or be True or False in line "
 			  << lexer_.get_line() << std::endl;
 		assert(0);
 		break;
@@ -298,7 +330,7 @@ TNode *pyc::Parser::factor_(void)
 	while (curr_token_->get_type() == TokenType::OPERATOR
 	       and (curr_token_->get_tag() == TagType::MUL
 		    or curr_token_->get_tag() == TagType::DIV
-		    or curr_token_->get_type() == TagType::MOD)) {
+		    or curr_token_->get_tag() == TagType::MOD)) {
 		TNode *temp = node_fac;
 
 		node_fac = new TNodeOp();
@@ -357,11 +389,11 @@ void pyc::Parser::init_stmnt_(const Token *id_token)
 	// Parse an expression -> an expression could contain functions calls operations etc ... etc ..
 	node_init->expr = cond_op_expr_();
 	assert(node_init->expr != NULL && "Should not return an null expression tree");
-	ast_.append_new_stmt(static_cast<TNode *>(node_init));
+	ast_.append_new_stmnt(static_cast<TNode *>(node_init));
 }
 
 
-TNode * pyc::Parser::func_call_(const Token *id_token)
+TNode *pyc::Parser::func_call_(const Token *id_token)
 {
 	if (!match_(Token::lparen)) {
 		std::cerr << "Error: expect to have an left parentheses '(' "
@@ -401,7 +433,7 @@ void pyc::Parser::func_call_stmnt_(const Token *id_token)
 	assert(id_token != NULL && "Can't receive a null pointer");
 	TNodeCall *node_call = static_cast<TNodeCall *>(func_call_(id_token));
 	assert(node_call != NULL && "Can't receive a null pointer");
-	ast_.append_new_stmt(static_cast<TNode *>(node_call));
+	ast_.append_new_stmnt(static_cast<TNode *>(node_call));
 }
 
 
@@ -469,28 +501,319 @@ void pyc::Parser::if_stmnt_(void)
 {
 	TNodeIf *node = new TNodeIf();
 	node->token = curr_token_; // Catch the if statement
+	node->or_else = NULL;
 
 	// Parse the conditional expression
+	advance_();
+	node->cond = cond_op_expr_();
+	
+	// Sincie it is a new code block
+	if (!match_(Token::two_points)) {
+		std::cerr << "Error: expect to have an initialization of a code block ':' for an "
+			"if definition in line "
+			  << lexer_.get_line() << std::endl;
+		assert(0);
+	}
+	
+	
+	// Create the new code block
+	node->block = new TNodeBlock();
+	ast_.append_new_stmnt(node);
+	ast_.set_new_block(node->block);
+	
+	// Create a new ident level
+	curr_ident_.set_ident_level(curr_ident_.get_ident_level() + 1);
+	advance_();
+
+	if (not match_(Token::end_of_line)) {
+		std::cerr << "Error: expect to have an end of line of a statement "
+			"in line "
+			  << lexer_.get_line() << std::endl;
+		assert(0);
+	}
+	
+	advance_();
+	
+	// We start parsing the block of code of the if statement
+	block_();
+
+	if (not match_(Token::end_of_line) and not match_(curr_ident_)) {
+		std::cerr << "Error: expect to have an end of line of a statement or a new ident block"
+			"in line "
+			  << lexer_.get_line() << std::endl;
+		assert(0);
+	}
+}
+
+void pyc::Parser::elif_stmnt_(void)
+{
+	// To process an elif we need to have previously an elif
+	TNodeBlock *block = ast_.top_block();
+
+	// Then by having the actual code block the last stmnt must be en if stmnt	
+	if (block->stmnts.back()->type != TNodeType::IFBLOCK) {
+		std::cerr << "Error: expect to have a previous if statment in the actual code block "
+			"in line "
+			  << lexer_.get_line() << std::endl;
+		assert(0);
+	}
+	
+	TNodeIf *prev_if = static_cast<TNodeIf *>(block->stmnts.back());
+	TNodeIf *new_if = NULL;
+
+	while (prev_if->or_else != NULL) {
+		if (prev_if->type != TNodeType::IFBLOCK) {
+			std::cerr << "Error: to have a previous if or elif statement  "
+				"in line "
+				  << lexer_.get_line() << std::endl;
+			assert(0);
+		}
+		prev_if = static_cast<TNodeIf *>(prev_if->or_else);
+		if (prev_if->type != TNodeType::IFBLOCK) {
+			std::cerr << "Error: to have a previous if or elif statement  "
+				"in line "
+				  << lexer_.get_line() << std::endl;
+			assert(0);
+		}
+	}
+
+	// Create a new if node
+	prev_if->or_else = new_if = new TNodeIf();
+	new_if->or_else = NULL;
+	new_if->token = curr_token_;
+	
+	// Parse the conditional expression
+	advance_();
+	new_if->cond = cond_op_expr_();
+
+	// Sincie it is a new code block
+	if (not match_(Token::two_points)) {
+		std::cerr << "Error: expect to have an initialization of a code block ':' for a "
+			"if definition in line "
+			  << lexer_.get_line() << std::endl;
+		assert(0);
+	}
+	
+	// Create the new code block
+	new_if->block = new TNodeBlock();
+	ast_.set_new_block(new_if->block);
+
+	// Create a new ident level
+	curr_ident_.set_ident_level(curr_ident_.get_ident_level() + 1);
+	advance_();
+	
+	if (not match_(Token::end_of_line)) {
+		std::cerr << "Error: expect to have an end of line of a statement "
+			"in line "
+			  << lexer_.get_line() << std::endl;
+		assert(0);
+	}
+	
+	advance_();
+	
+	// We start parsing the block of code of the if statement
+	block_();
+
+
+	if (not match_(Token::end_of_line) and not match_(curr_ident_)) {
+		std::cerr << "Error: expect to have an end of line of a statement or a new ident block"
+			"in line "
+			  << lexer_.get_line() << std::endl;
+		assert(0);
+	}
+}
+
+void pyc::Parser::else_stmnt_(void)
+{
+	// To process an elif we need to have previously an elif
+	TNodeBlock *block = ast_.top_block();
+
+	// Then by having the actual code block the last stmnt must be en if stmnt
+	if (block->stmnts.back()->type != TNodeType::IFBLOCK) {
+		std::cerr << "Error: expect to have a previous if statment in the actual code block "
+			"in line "
+			  << lexer_.get_line() << std::endl;
+		assert(0);	
+	}
+
+	TNodeIf *prev_if = static_cast<TNodeIf *>(block->stmnts.back());
+	TNodeBlock *else_block = NULL;
+
+	while (prev_if->or_else != NULL) {
+		if (prev_if->type != TNodeType::IFBLOCK) {
+			std::cerr << "Error: to have a previous if or elif statement  "
+				"in line "
+				  << lexer_.get_line() << std::endl;
+			assert(0);
+		}
+		prev_if = static_cast<TNodeIf *>(prev_if->or_else);
+		if (prev_if->type != TNodeType::IFBLOCK) {
+			std::cerr << "Error: to have a previous if or elif statement  "
+				"in line "
+				  << lexer_.get_line() << std::endl;
+			assert(0);
+		}
+	}
+
+	// Create a new code block because it is an else statement
+	prev_if->or_else = else_block = new TNodeBlock();
+	ast_.set_new_block(else_block);
+
+	// Create a new ident level
+	curr_ident_.set_ident_level(curr_ident_.get_ident_level() + 1);
+	advance_();
+
+	if (not match_(Token::two_points)) {
+		std::cerr << "Error: expect to have an end of line of a statement "
+			"in line "
+			  << lexer_.get_line() << std::endl;
+		assert(0);
+	}
+	
+	advance_();
+
+	if (not match_(Token::end_of_line)) {
+		std::cerr << "Error: expect to have an end of line of a statement "
+			"in line "
+			  << lexer_.get_line() << std::endl;
+		assert(0);
+	}
+
+	advance_();
+	
+	// We start parsing the block of code of the if statement
+	block_();
+	
+	if (not match_(Token::end_of_line) and not match_(curr_ident_)) {
+		std::cerr << "Error: expect to have an end of line of a statement or a new ident block"
+			"in line "
+			  << lexer_.get_line() << std::endl;
+		assert(0);
+		
+	}
+}
+
+
+void pyc::Parser::while_stmnt_(void)
+{
+	TNodeWhile *node = new TNodeWhile();
+	node->token = curr_token_;
+
+	// Parse the conditional
 	advance_();
 	node->cond = cond_op_expr_();
 
 	// Sincie it is a new code block
 	if (!match_(Token::two_points)) {
 		std::cerr << "Error: expect to have an initialization of a code block ':' for a "
-			"if definition in line "
+			"while definition in line "
+			  << lexer_.get_line() << std::endl;
+		assert(0);
+	}
+	
+	node->block = new TNodeBlock();
+	ast_.append_new_stmnt(node);
+	ast_.set_new_block(node->block);
+
+	// Create a new ident level
+	curr_ident_.set_ident_level(curr_ident_.get_ident_level() + 1);
+	advance_();
+
+	if (not match_(Token::end_of_line)) {
+		std::cerr << "Error: expect to have an end of line of a statement "
+			"in line "
 			  << lexer_.get_line() << std::endl;
 		assert(0);
 	}
 
-	// Create the new code block
-	node->block = new TNodeBlock();
-	ast_.append_new_stmt(node);
-	ast_.set_new_block(node->block);
+	advance_();
+
+	// We start parsing the block of code of the for statement
+	block_();
+
+	if (not match_(Token::end_of_line) and not match_(curr_ident_)) {
+		std::cerr << "Error: expect to have an end of line of a statement or a new ident block"
+			"in line "
+			  << lexer_.get_line() << std::endl;
+		assert(0);
+	}
+}
+
+void pyc::Parser::for_stmnt_(void)
+{
+	TNodeFor *node = new TNodeFor();
+	node->token = curr_token_;
 	
+
+	// TODO: Investigate the other options
+	// Parse the variable iterator, it must be a variable
+	advance_();
+
+	
+	if (curr_token_->get_tag() != TagType::ID) {
+		std::cerr << "Error: unexpect token for a 'for' definition "
+			"in line "
+			  << lexer_.get_line() << std::endl;
+		assert(0);
+	}
+
+	node->element = new TNodeTerm();
+	(static_cast<TNodeTerm *>(node->element))->token = curr_token_;
+	
+	advance_();
+
+	if (curr_token_->get_tag() != TagType::IN) {
+		std::cerr << "Error: unexpect token for a 'for' definition "
+			"in line "
+			  << lexer_.get_line() << std::endl;
+		assert(0);
+	}
+	
+	advance_();
+
+	const Token *id_token = curr_token_;
+	
+	advance_();
+	
+	if (!match_(Token::lparen)) { // if it is not a function call then it should be a var
+		node->iterate = new TNodeTerm();
+		(static_cast<TNodeTerm *>(node->element))->token = id_token;
+	}  else
+		node->iterate = func_call_(id_token); // Is a function call
+	
+	if (!match_(Token::two_points)) {
+		std::cerr << "Error: expect two points for a code block definition "
+			"in line "
+			  << lexer_.get_line() << std::endl;
+		assert(0);
+	}
+
+	node->block = new TNodeBlock();
+	ast_.append_new_stmnt(node);
+	ast_.set_new_block(node->block);
+
 	// Create a new ident level
 	curr_ident_.set_ident_level(curr_ident_.get_ident_level() + 1);
+	advance_();
+	
+	if (not match_(Token::end_of_line)) {
+		std::cerr << "Error: expect to have an end of line of a statement "
+			"in line "
+			  << lexer_.get_line() << std::endl;
+		assert(0);
+	}
 
 	advance_();
+
+	// We start parsing the block of code of the if statement
+	block_();
+
+	if (not match_(Token::end_of_line) and not match_(curr_ident_)) {
+		std::cerr << "Error: expect to have an end of line of a statement or a new ident block"
+			"in line "
+			  << lexer_.get_line() << std::endl;
+		assert(0);
+	}
 }
 
 void pyc::Parser::stmnt_(void)
@@ -517,6 +840,18 @@ void pyc::Parser::stmnt_(void)
 			break;
 		case TagType::IF:
 			if_stmnt_();
+			break;
+		case TagType::ELIF:
+			elif_stmnt_();
+			break;
+		case TagType::ELSE:
+			else_stmnt_();
+			break;
+		case TagType::WHILE:
+			while_stmnt_();
+			break;
+		case TagType::FOR:
+			for_stmnt_();
 			break;
 		}
 		
@@ -550,58 +885,63 @@ void pyc::Parser::stmnt_(void)
 	}
 }
 
-
-void pyc::Parser::parse_(void)
+void pyc::Parser::block_(void)
 {
-	if (curr_ident_.get_ident_level() > 0 ) {
-		if (!match_(curr_ident_)) {
-			std::cerr << "Error: identation don't match with the current  "
-				"block of code definition in line "
-				  << lexer_.get_line() << std::endl;
-			assert(0);
-			return;
-		}
-		advance_();
+	if (!match_(curr_ident_)
+	    and static_cast<const Ident *>(curr_token_)->get_ident_level() == curr_ident_.get_ident_level()) {
+		std::cerr << "Error: identation don't match with the current  "
+			"block of code definition in line "
+			  << lexer_.get_line() << std::endl;
+		assert(0);
+		return;
 	}
-
-	for ( ; lexer_.is_token_available(); advance_()) {
+	
+	while (lexer_.is_token_available()) {
 		if (curr_token_->get_tag() == TagType::IDENT) {
 			const Ident *actual_ident = static_cast<const Ident *>(curr_token_);
 			if (actual_ident->get_ident_level() < curr_ident_.get_ident_level()) {
-				// Move to previous code block by the given identation
-				for (long n = curr_ident_.get_ident_level();
-				     n > actual_ident->get_ident_level(); n--)
-					ast_.pop_block();
-				
-				
+				// Move to previous code block by the given identationa
+				ast_.pop_block();
 				curr_ident_.set_ident_level(actual_ident->get_ident_level());
+				return;
 			}
 			advance_();
 		} else {
-			for (long n = curr_ident_.get_ident_level(); n > 0; n--)
-				ast_.pop_block();
-			curr_ident_.set_ident_level(0);
+			if (not match_(Token::end_of_line)) {
+				std::cerr << "Error: expect to have an end of line of a statement "
+					"in line "
+					  << lexer_.get_line() << std::endl;
+				assert(0);
+				return;
+			}
+			
+			ast_.pop_block();
+			curr_ident_.set_ident_level(curr_ident_.get_ident_level() - 1);
+			return;
 		}
 		
 		if (match_(Token::end_of_line)) {
-			if (!lexer_.is_token_available())
-				break;
+			advance_();
 			continue;
 		}
-		
+
 		stmnt_();
-		
-		if (!match_(Token::end_of_line)) {
-			std::cerr << "Error: expect to have an end of line of a statement "
+
+
+		// This is it, because in the case that the parsed stmnt was a block type, its parsing
+		// will be eneded in a identation shit
+		if (not match_(Token::end_of_line) and not match_(curr_ident_)) {
+			std::cerr << "Error: expect to have an end of line of a statement or a new ident block"
 				"in line "
 				  << lexer_.get_line() << std::endl;
 			assert(0);
 			return;
 		}
+		
+		if (match_(Token::end_of_line) and lexer_.is_token_available())
+			advance_();
 	}
 }
-
-
 
 void pyc::Parser::parse(void)
 {
@@ -610,10 +950,27 @@ void pyc::Parser::parse(void)
 		assert(0 && "There isn't tokens to parse");
 	
 	// Read the first tokenu
-	advance_();
+	// advance_();
 	
 	// Init the parser
-	parse_();
+	// parse_();
+
+
+	while (lexer_.is_token_available()) {
+		advance_();
+		
+		if (match_(Token::end_of_line))
+			continue;
+
+		stmnt_();
+		
+		if (!match_(Token::end_of_line)) {
+			std::cerr << "Error: expect to have an end of line of a statement "
+				"in line "
+				  << lexer_.get_line() << std::endl;
+			assert(0);
+		}
+	}
 }
 
 const AST &pyc::Parser::get_ast(void) const

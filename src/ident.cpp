@@ -9,7 +9,7 @@ pyc::Ident::Ident(const long &ident_level)
 	
 }
 
-pyc::Ident::Ident(void)
+pyc::Ident::Ident(void) : Token(TokenType::DELIMITER, TagType::IDENT)
 {
 	ident_level_ = 0;
 }

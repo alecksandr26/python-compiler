@@ -33,7 +33,7 @@ void pyc::AST::set_new_block(TNodeBlock *new_block)
 }
 
 
-void pyc::AST::append_new_stmt(TNode *stmnt)
+void pyc::AST::append_new_stmnt(TNode *stmnt)
 {
 	assert(stmnt != NULL && "Can't be null");
 	assert(curr_block_ != NULL && "It should have a code block");
@@ -44,6 +44,12 @@ void pyc::AST::pop_block(void)
 {
 	curr_block_ = blocks_.top();
 	blocks_.pop();
+}
+
+TNodeBlock *pyc::AST::top_block(void)
+{
+	assert(curr_block_ != NULL && "Needs to be a code block");
+	return curr_block_;
 }
 
 std::stringstream pyc::ast_fetch_stream_node(TNode *node)
@@ -95,7 +101,7 @@ std::stringstream pyc::ast_fetch_stream_node(TNode *node)
 		break;					
 	case TNodeType::WHILEBLOCK:
 		{
-			const TNodeIf *if_block = static_cast<TNodeIf *>(node);
+			const TNodeWhile *if_block = static_cast<TNodeWhile *>(node);
 			ss << *if_block;
 		}
 		break;

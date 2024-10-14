@@ -17,7 +17,7 @@ namespace pyc {
 	class TNodeType {
 	public:
 		enum TNodeTypeEnum {
-			TERM,
+			TERM = 0,
 			CALL,
 			OPER,
 			INIT,
@@ -54,7 +54,7 @@ namespace pyc {
 
 		friend std::ostream &operator<<(std::ostream &os, const TNodeTerm &node)
 		{
-			os << "<TNodeTerm>\n";
+			os << "<Term>\n";
 			switch (node.token->get_type()) {
 			case TokenType::STRING:
 			case TokenType::IDENTIFIER:
@@ -86,7 +86,7 @@ namespace pyc {
 				break;
 			}
 			
-			os << "<EndTNodeTerm>\n";
+			os << "<EndTerm>\n";
 			return os;
 		}
 	};
@@ -104,7 +104,7 @@ namespace pyc {
 
 		friend std::ostream &operator<<(std::ostream &os, const TNodeCall &call)
 		{
-			os << "<TNodeCall>\n";
+			os << "<Call>\n";
 			assert(call.token->get_type() == TokenType::IDENTIFIER && "It must be an identifier");
 			const Word *word = static_cast<const Word *>(call.token);
 			os << '\t' << *word << '\n';
@@ -121,7 +121,7 @@ namespace pyc {
 			}
 			os << '\t' << "<EndArguments>" << '\n';
 			
-			os << "<EndTNodeCall>\n";
+			os << "<EndCall>\n";
 			return os;
 		}
 	};
@@ -140,7 +140,7 @@ namespace pyc {
 		
 		friend std::ostream &operator<<(std::ostream &os, const TNodeOp &op)
 		{
-			os << "<TNodeOp>\n";
+			os << "<Op>\n";
 			
 			assert(op.token->get_type() == TokenType::OPERATOR && "It must be an operator");
 
@@ -148,7 +148,7 @@ namespace pyc {
 			os << '\t' << *op.token << '\n';
 			os << ast_fetch_stream_node(op.right).str();
 			
-			os << "<EndTNodeOp>\n";
+			os << "<EndOp>\n";
 			return os;
 		}
 	};
@@ -173,7 +173,7 @@ namespace pyc {
 
 		friend std::ostream &operator<<(std::ostream &os, const TNodeInit &init)
 		{
-			os << "<TNodeInit>\n";
+			os << "<Init>\n";
 
 			// Must be the token '='
 			assert(init.token->get_type() == TokenType::OPERATOR
@@ -183,7 +183,7 @@ namespace pyc {
 			os << '\t' << *init.token << '\n';
 			os << ast_fetch_stream_node(init.expr).str();
 			
-			os << "<EndTNodeInit>\n";
+			os << "<EndInit>\n";
 			return os;
 		}
 	};
@@ -197,14 +197,14 @@ namespace pyc {
 
 		friend std::ostream &operator<<(std::ostream &os, const TNodeBlock &block)
 		{
-			os << "<TNodeBlock>\n";
+			os << "<Block>\n";
 
 			for (TNode *node : block.stmnts) {
 				std::stringstream ss = ast_fetch_stream_node(node);
 				os << ss.str();
 			}
 			
-			os << "<EndTNodeBlock>\n";
+			os << "<EndBlock>\n";
 			return os;
 		}
 	};
@@ -223,7 +223,7 @@ namespace pyc {
 
 		friend std::ostream &operator<<(std::ostream &os, const TNodeBlockOp &block_op)
 		{
-			os << "<TNodeBlockOp>\n";
+			os << "<BlockOp>\n";
 			assert(block_op.token->get_type() == TokenType::KEYWORD);
 			const Word *word = static_cast<const Word *>(block_op.token);
 			os << '\t' << *word << '\n';
@@ -233,7 +233,7 @@ namespace pyc {
 				os << ss.str();
 			}
 				
-			os << "<EndTNodeBlockOp>\n";
+			os << "<EndBlockOp>\n";
 			return os;
 		}
 	};
@@ -258,7 +258,7 @@ namespace pyc {
 
 		friend std::ostream &operator<<(std::ostream &os, const TNodeIf &if_block)
 		{
-			os << "<TNodeIf>\n";
+			os << "<If>\n";
 			const Word *word = static_cast<const Word *>(if_block.token);
 			os << '\t' << *word << '\n';
 			os << '\t' << "<Cond>" << '\n';
@@ -273,9 +273,17 @@ namespace pyc {
 			// Print the code block
 			ss = ast_fetch_stream_node(if_block.block);
 			os << ss.str();
-			
-			
-			os << "<EndTNodeIf>\n";
+
+			if (if_block.or_else != NULL) {
+				os << '\t' << "<Else>" << '\n';
+				std::stringstream else_s = ast_fetch_stream_node(if_block.or_else);
+				while (std::getline(else_s, line)) {
+					os << '\t' << line << '\n';
+				}
+				os << '\t' << "<EndElse>" << '\n';
+			}
+				 
+			os << "<EndIf>\n";
 			return os;
 		}
 	};
@@ -297,9 +305,23 @@ namespace pyc {
 
 		friend std::ostream &operator<<(std::ostream &os, const TNodeWhile &while_block)
 		{
-			os << "<TNodeWhile>\n";
-			os << '\t' << while_block.token << '\n';
-			os << "<EndTNodeWhile>\n";
+			os << "<While>\n";
+			const Word *word = static_cast<const Word *>(while_block.token);
+			os << '\t' << *word << '\n';
+			os << '\t' << "<Cond>" << '\n';
+			// So print the condition
+			std::stringstream ss = ast_fetch_stream_node(while_block.cond);
+			std::string line;
+			while (std::getline(ss, line)) {
+				os << '\t' << line << '\n';
+			}
+			os << '\t' << "<EndCond>" << '\n';
+
+			// Print the code block
+			ss = ast_fetch_stream_node(while_block.block);
+			os << ss.str();
+			
+			os << "<EndWhile>\n";
 			return os;
 		}
 	};
@@ -312,21 +334,39 @@ namespace pyc {
 		// IDK how this thing will work, but i think it should be something like this
 
 		// The iterable element
-		TNodeTerm *element;
+		TNode *element;
 		
-		// The function that will make advance to the next element
-		TNodeCall *iterate;
+		// The function or object to iterate
+		TNode *iterate;
 		
 		// The body of the structure all the statement inside of the if
 		TNodeBlock *block;
 		
 		TNodeFor(void) : TNode(TNodeType::FORBLOCK) {}
-
+		
 		friend std::ostream &operator<<(std::ostream &os, const TNodeFor &for_block)
 		{
-			os << "<TNodeFor>\n";
-			os << '\t' << for_block.token << '\n';
-			os << "<EndTNodeFor>\n";
+			os << "<For>\n";
+			const Word *word = static_cast<const Word *>(for_block.token);
+			os << '\t' << *word << '\n';
+			os << '\t' << "<Element>" << '\n';
+			std::stringstream ss = ast_fetch_stream_node(for_block.element);
+			std::string line;
+			while (std::getline(ss, line)) {
+				os << '\t' << line << '\n';
+			}
+			os << '\t' << "<EndElement>" << '\n';
+			os << '\t' << "<Iter>" << '\n';
+			ss = ast_fetch_stream_node(for_block.iterate);
+			while (std::getline(ss, line)) {
+				os << '\t' << line << '\n';
+			}
+			os << '\t' << "<EndIter>" << '\n';
+			
+			ss = ast_fetch_stream_node(for_block.block);
+			os << ss.str();
+			
+			os << "<EndFor>\n";
 			return os;
 		}
 	};
@@ -349,7 +389,7 @@ namespace pyc {
 
 		friend std::ostream &operator<<(std::ostream &os, const TNodeFunc &func_block)
 		{
-			os << "<TNodeFunc>\n";
+			os << "<Func>\n";
 			
 			assert(func_block.token->get_type() == TokenType::IDENTIFIER
 			       && "It must be an identifier");
@@ -369,7 +409,7 @@ namespace pyc {
 			std::stringstream ss = ast_fetch_stream_node(func_block.block);
 			os << ss.str();
 
-			os << "<EndTNodeFunc>\n";
+			os << "<EndFunc>\n";
 			return os;
 		}
 	};
@@ -382,7 +422,7 @@ namespace pyc {
 
 		// To keep track in which block of code we are constructing
 		std::stack<TNodeBlock *> blocks_;
-		
+
 		
 	public:
 		AST(void);
@@ -391,11 +431,12 @@ namespace pyc {
 		void set_new_block(TNodeBlock *block);
 
 		// Appends stmnt to the current block
-		void append_new_stmt(TNode *stmnt);
-
+		void append_new_stmnt(TNode *stmnt);
 		
 		// Pops back and move back to the previous code block
 		void pop_block(void);
+		
+		TNodeBlock *top_block(void);
 
 		
 		// TODO: we need to have a global function kind of static function

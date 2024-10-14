@@ -62,6 +62,9 @@ pyc::Lexer::Lexer(std::istream &source) : source_(source)
 	keywords_.insert(std::make_pair("and", Word("and", Token(TokenType::OPERATOR, TagType::AND))));
 	keywords_.insert(std::make_pair("or", Word("or", Token(TokenType::OPERATOR, TagType::OR))));
 	keywords_.insert(std::make_pair("not", Word("not", Token(TokenType::OPERATOR, TagType::NOT))));
+	
+	keywords_.insert(std::make_pair("True", Word("True", Token(TokenType::KEYWORD, TagType::TRUE))));
+	keywords_.insert(std::make_pair("False", Word("False", Token(TokenType::KEYWORD, TagType::FALSE))));
 
 	line_ = 1;
 	peek_ = '\0';

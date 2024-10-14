@@ -47,17 +47,20 @@ namespace pyc {
 		
 		//  It will parse a if, elif, else statements, with its block, and cond expression
 		void if_stmnt_(void);
+		void elif_stmnt_(void);
+		void else_stmnt_(void);
 
 		//  It will parse while statment, with its block and and condition expression
 		void while_stmnt_(void);
+		void for_stmnt_(void);
 		
 		// To parse this types of function
 		void func_stmnt_(void);
 
 		// To parse the arguments and the fucntion call
-
 		void func_call_stmnt_(const Token *id_token);
-
+		
+		void block_(void);
 		
 	public:
 		Parser(std::istream &source);
