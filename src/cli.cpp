@@ -169,7 +169,7 @@ int main(int argc, char *argv[])
 
 	// For the moment process with the lexer
 	std::ifstream source(compiler_params.source_file);
-#if 1
+#if 0
 	pyc::Parser parser(source);
 
 	parser.parse();

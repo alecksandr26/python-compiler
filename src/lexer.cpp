@@ -16,7 +16,6 @@
 
 using namespace pyc;
 
-
 pyc::Lexer::Lexer(std::istream &source) : source_(source)
 {
 	if (!source_)

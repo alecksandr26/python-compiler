@@ -782,13 +782,6 @@ void pyc::Parser::parse(void)
 	if (!lexer_.is_token_available())
 		assert(0 && "There isn't tokens to parse");
 	
-	// Read the first tokenu
-	// advance_();
-	
-	// Init the parser
-	// parse_();
-
-
 	while (lexer_.is_token_available()) {
 		advance_();
 		
