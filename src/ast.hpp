@@ -362,7 +362,6 @@ namespace pyc {
 				os << '\t' << line << '\n';
 			}
 			os << '\t' << "<EndIter>" << '\n';
-			
 			ss = ast_fetch_stream_node(for_block.block);
 			os << ss.str();
 			
