@@ -69,10 +69,10 @@
 #include "parser.hpp"
 #include "ast.hpp"
 #include "token.hpp"
+#include "error.hpp"
 
 using namespace pyc;
 
-// TODO: Build proper expections
 
 // Create also the lexer with the source file
 pyc::Parser::Parser(std::istream &source) : lexer_(source), curr_token_(NULL)
@@ -86,8 +86,6 @@ void pyc::Parser::advance_(void)
 		curr_token_ = &lexer_.next_token();
 		return;
 	}
-	
-	assert(0 && "There isn't more tokens");
 }
 
 bool pyc::Parser::match_(Token token)
@@ -104,21 +102,15 @@ void pyc::Parser::func_stmnt_(void)
 
 	// Parse the name
 	advance_();
-	if (!match_(Token(TokenType::IDENTIFIER, TagType::ID))) {
-		std::cerr << "Error: expect to have a function name for a function definition in line "
-			  << lexer_.get_line() << std::endl;
-		assert(0);
-	}
+	if (!match_(Token(TokenType::IDENTIFIER, TagType::ID)))
+		throw LogParserError(ERROR_EXPECT_FUNC_NAME, lexer_.get_line());
 
 	node->token = curr_token_;
 	
 	// Parse the params
 	advance_();
-	if (!match_(Token::lparen)) {
-		std::cerr << "Error: expect to have an left parentheses '(' for a function definition in line "
-			  << lexer_.get_line() << std::endl;
-		assert(0);
-	}
+	if (!match_(Token::lparen))
+		throw LogParserError(ERROR_EXPECT_LPAREM, lexer_.get_line());
 	
 	advance_();
 	while (match_(Token(TokenType::IDENTIFIER, TagType::ID))) {
@@ -127,29 +119,18 @@ void pyc::Parser::func_stmnt_(void)
 		advance_();
 		if (match_(Token::comma)) {
 			advance_();
-			if (!match_(Token(TokenType::IDENTIFIER, TagType::ID))) {
-				std::cerr << "Error: expect to have another param for"
-					" a function definition in line "
-					  << lexer_.get_line() << std::endl;
-				assert(0);
-			}
+			if (!match_(Token(TokenType::IDENTIFIER, TagType::ID)))
+				throw LogParserError(ERROR_EXPECT_PARAM, lexer_.get_line());
 		}
 	}
 
-	if (!match_(Token::rparen)) {
-		std::cerr << "Error: expect to have an right parentheses ')' for a function definition in line "
-			  << lexer_.get_line() << std::endl;
-		assert(0);
-	}
+	if (!match_(Token::rparen))
+		throw LogParserError(ERROR_EXPECT_RPAREM, lexer_.get_line());
 
 
 	advance_();
-	if (!match_(Token::two_points)) {
-		std::cerr << "Error: expect to have an initialization of a code block ':' for a "
-			"function definition in line "
-			  << lexer_.get_line() << std::endl;
-		assert(0);
-	}
+	if (!match_(Token::two_points))
+		throw LogParserError(ERROR_EXPECT_COLON_FOR_CODE_BLOCK, lexer_.get_line());
 	
 
 	// Append the new code block
@@ -161,24 +142,16 @@ void pyc::Parser::func_stmnt_(void)
 	curr_ident_.set_ident_level(curr_ident_.get_ident_level() + 1);
 	advance_();
 
-	if (not match_(Token::end_of_line)) {
-		std::cerr << "Error: expect to have an end of line of a statement "
-			"in line "
-			  << lexer_.get_line() << std::endl;
-		assert(0);
-	}
-
+	if (not match_(Token::end_of_line))
+		throw LogParserError(ERROR_EXPECT_END_OF_LINE, lexer_.get_line());
+	
 	advance_();
 
 	// We start parsing the block of code of the if statement
 	block_();
 
-	if (not match_(Token::end_of_line) and not match_(curr_ident_)) {
-		std::cerr << "Error: expect to have an end of line of a statement or a new ident block"
-			"in line "
-			  << lexer_.get_line() << std::endl;
-		assert(0);
-	}
+	if (not match_(Token::end_of_line) and not match_(curr_ident_))
+		throw LogParserError(ERROR_EXPECT_END_OF_LINE_OR_NEW_IDENT_BLOCK, lexer_.get_line());
 }
 
 void pyc::Parser::block_op_stmnt_(void)
@@ -186,14 +159,8 @@ void pyc::Parser::block_op_stmnt_(void)
 	if (!(match_(Token(TokenType::KEYWORD, TagType::PASS))
 	      or match_(Token(TokenType::KEYWORD, TagType::RETURN))
 	      or match_(Token(TokenType::KEYWORD, TagType::BREAK))
-	      or match_(Token(TokenType::KEYWORD, TagType::CONTINUE)))) {
-		std::cerr << "Error: expect to have at least one operational block statement like 'pass, "
-			"return, break, continue' for a code block in line "
-			  << lexer_.get_line() << std::endl;
-		assert(0);
-	}
-
-	
+	      or match_(Token(TokenType::KEYWORD, TagType::CONTINUE))))
+		throw LogParserError(ERROR_EXPECT_OP_BLOCK, lexer_.get_line());
 	
 	TNodeBlockOp *node = new TNodeBlockOp();
 	node->token = curr_token_;
@@ -221,10 +188,7 @@ TNode *pyc::Parser::term_(void)
 			}
 			break;
 		default:
-			std::cerr << "Error: Uknow number in line "
-				  << lexer_.get_line() << std::endl;
-			assert(0);
-			break;
+			throw LogParserError(ERROR_UNKNOW_NUMBER_TERM, lexer_.get_line());
 		}
 
 		advance_();
@@ -253,28 +217,20 @@ TNode *pyc::Parser::term_(void)
 		break;
 
 	case TokenType::DELIMITER: // must be an l paren '('
-		if (!match_(Token::lparen)) {
-			std::cerr << "Error: Uknow token term in line "
-				  << lexer_.get_line() << std::endl;
-			assert(0);
-		}
+		if (!match_(Token::lparen))
+			throw LogParserError(ERROR_EXPECT_LPAREM, lexer_.get_line());
 		advance_();
 		// Then parse another expression here
 		term = cond_op_expr_();
-		if (!match_(Token::rparen)) {
-			std::cerr << "Error: Expecting a close parem ')' closing the expression in line "
-				  << lexer_.get_line() << std::endl;
-			assert(0);
-		}
+		if (!match_(Token::rparen))
+			throw LogParserError(ERROR_EXPECT_RPAREM, lexer_.get_line());
 		advance_();
 		
 		break;
 
 	case TokenType::KEYWORD:
 		if (not (curr_token_->get_tag() == TagType::TRUE or curr_token_->get_tag() == TagType::FALSE)) {
-			std::cerr << "Error: Expecing True or False in line "
-				  << lexer_.get_line() << std::endl;
-			assert(0);
+			throw LogParserError(ERROR_UNKNOW_BOOL_TERM, lexer_.get_line());
 		} else {
 			term = new TNodeTerm();
 			(static_cast<TNodeTerm *>(term))->token = curr_token_;
@@ -282,11 +238,7 @@ TNode *pyc::Parser::term_(void)
 		}
 		break;
 	default:
-		std::cerr << "Error: As a term it expect to be Identifier, Number, String, or Delimiter '(',"
-			" or be True or False in line "
-			  << lexer_.get_line() << std::endl;
-		assert(0);
-		break;
+		throw LogParserError(ERROR_UNKNOW_TERM, lexer_.get_line());
 	};
 
 	return term;
@@ -372,11 +324,8 @@ TNode *pyc::Parser::expr_(void)
 void pyc::Parser::init_stmnt_(const Token *id_token)
 {
 	assert(id_token != NULL && "Can't receive null pointers");
-	if (!match_(Token::init)) {
-		std::cerr << "Error: expect to have an initialization operation '=', "
-			"in line " << lexer_.get_line() << std::endl;
-		assert(0);
-	}
+	if (!match_(Token::init))
+		throw LogParserError(ERROR_EXPECT_INITALIZATION, lexer_.get_line());
 	
 	TNodeInit *node_init = new TNodeInit();
 	TNodeTerm *node_term = new TNodeTerm();
@@ -395,11 +344,9 @@ void pyc::Parser::init_stmnt_(const Token *id_token)
 
 TNode *pyc::Parser::func_call_(const Token *id_token)
 {
-	if (!match_(Token::lparen)) {
-		std::cerr << "Error: expect to have an left parentheses '(' "
-			"in line " << lexer_.get_line() << std::endl;		
-		assert(0);
-	}
+	if (!match_(Token::lparen))
+		throw LogParserError(ERROR_EXPECT_LPAREM, lexer_.get_line());
+
 
 	TNodeCall *node = new TNodeCall();
 	node->token = id_token;
@@ -413,12 +360,8 @@ TNode *pyc::Parser::func_call_(const Token *id_token)
 		
 		if (match_(Token::comma)) {
 			advance_();
-			if (match_(Token::rparen)) {
-				std::cerr << "Error: expect to have another argument for"
-					" a function call in line "
-					  << lexer_.get_line() << std::endl;
-				assert(0);
-			}
+			if (match_(Token::rparen))
+				throw LogParserError(ERROR_EXPECT_PARAM, lexer_.get_line());
 		}
 	}
 
@@ -508,12 +451,8 @@ void pyc::Parser::if_stmnt_(void)
 	node->cond = cond_op_expr_();
 	
 	// Sincie it is a new code block
-	if (!match_(Token::two_points)) {
-		std::cerr << "Error: expect to have an initialization of a code block ':' for an "
-			"if definition in line "
-			  << lexer_.get_line() << std::endl;
-		assert(0);
-	}
+	if (!match_(Token::two_points))
+		throw LogParserError(ERROR_EXPECT_COLON_FOR_CODE_BLOCK, lexer_.get_line());
 	
 	
 	// Create the new code block
@@ -525,24 +464,16 @@ void pyc::Parser::if_stmnt_(void)
 	curr_ident_.set_ident_level(curr_ident_.get_ident_level() + 1);
 	advance_();
 
-	if (not match_(Token::end_of_line)) {
-		std::cerr << "Error: expect to have an end of line of a statement "
-			"in line "
-			  << lexer_.get_line() << std::endl;
-		assert(0);
-	}
+	if (not match_(Token::end_of_line))
+		throw LogParserError(ERROR_EXPECT_END_OF_LINE, lexer_.get_line());
 	
 	advance_();
 	
 	// We start parsing the block of code of the if statement
 	block_();
 
-	if (not match_(Token::end_of_line) and not match_(curr_ident_)) {
-		std::cerr << "Error: expect to have an end of line of a statement or a new ident block"
-			"in line "
-			  << lexer_.get_line() << std::endl;
-		assert(0);
-	}
+	if (not match_(Token::end_of_line) and not match_(curr_ident_))
+		throw LogParserError(ERROR_EXPECT_END_OF_LINE_OR_NEW_IDENT_BLOCK, lexer_.get_line());
 }
 
 void pyc::Parser::elif_stmnt_(void)
@@ -551,30 +482,18 @@ void pyc::Parser::elif_stmnt_(void)
 	TNodeBlock *block = ast_.top_block();
 
 	// Then by having the actual code block the last stmnt must be en if stmnt	
-	if (block->stmnts.back()->type != TNodeType::IFBLOCK) {
-		std::cerr << "Error: expect to have a previous if statment in the actual code block "
-			"in line "
-			  << lexer_.get_line() << std::endl;
-		assert(0);
-	}
+	if (block->stmnts.back()->type != TNodeType::IFBLOCK)
+		throw LogParserError(ERROR_EXPECT_PREV_IF_OR_ELIF_BLOCK, lexer_.get_line());
 	
 	TNodeIf *prev_if = static_cast<TNodeIf *>(block->stmnts.back());
 	TNodeIf *new_if = NULL;
 
 	while (prev_if->or_else != NULL) {
-		if (prev_if->type != TNodeType::IFBLOCK) {
-			std::cerr << "Error: to have a previous if or elif statement  "
-				"in line "
-				  << lexer_.get_line() << std::endl;
-			assert(0);
-		}
+		if (prev_if->type != TNodeType::IFBLOCK)
+			throw LogParserError(ERROR_EXPECT_PREV_IF_OR_ELIF_BLOCK, lexer_.get_line());
 		prev_if = static_cast<TNodeIf *>(prev_if->or_else);
-		if (prev_if->type != TNodeType::IFBLOCK) {
-			std::cerr << "Error: to have a previous if or elif statement  "
-				"in line "
-				  << lexer_.get_line() << std::endl;
-			assert(0);
-		}
+		if (prev_if->type != TNodeType::IFBLOCK)
+			throw LogParserError(ERROR_EXPECT_PREV_IF_OR_ELIF_BLOCK, lexer_.get_line());
 	}
 
 	// Create a new if node
@@ -587,12 +506,8 @@ void pyc::Parser::elif_stmnt_(void)
 	new_if->cond = cond_op_expr_();
 
 	// Sincie it is a new code block
-	if (not match_(Token::two_points)) {
-		std::cerr << "Error: expect to have an initialization of a code block ':' for a "
-			"if definition in line "
-			  << lexer_.get_line() << std::endl;
-		assert(0);
-	}
+	if (not match_(Token::two_points))
+		throw LogParserError(ERROR_EXPECT_COLON_FOR_CODE_BLOCK, lexer_.get_line());
 	
 	// Create the new code block
 	new_if->block = new TNodeBlock();
@@ -602,12 +517,8 @@ void pyc::Parser::elif_stmnt_(void)
 	curr_ident_.set_ident_level(curr_ident_.get_ident_level() + 1);
 	advance_();
 	
-	if (not match_(Token::end_of_line)) {
-		std::cerr << "Error: expect to have an end of line of a statement "
-			"in line "
-			  << lexer_.get_line() << std::endl;
-		assert(0);
-	}
+	if (not match_(Token::end_of_line))
+		throw LogParserError(ERROR_EXPECT_END_OF_LINE, lexer_.get_line());
 	
 	advance_();
 	
@@ -615,12 +526,8 @@ void pyc::Parser::elif_stmnt_(void)
 	block_();
 
 
-	if (not match_(Token::end_of_line) and not match_(curr_ident_)) {
-		std::cerr << "Error: expect to have an end of line of a statement or a new ident block"
-			"in line "
-			  << lexer_.get_line() << std::endl;
-		assert(0);
-	}
+	if (not match_(Token::end_of_line) and not match_(curr_ident_))
+		throw LogParserError(ERROR_EXPECT_END_OF_LINE_OR_NEW_IDENT_BLOCK, lexer_.get_line());
 }
 
 void pyc::Parser::else_stmnt_(void)
@@ -629,30 +536,19 @@ void pyc::Parser::else_stmnt_(void)
 	TNodeBlock *block = ast_.top_block();
 
 	// Then by having the actual code block the last stmnt must be en if stmnt
-	if (block->stmnts.back()->type != TNodeType::IFBLOCK) {
-		std::cerr << "Error: expect to have a previous if statment in the actual code block "
-			"in line "
-			  << lexer_.get_line() << std::endl;
-		assert(0);	
-	}
+	if (block->stmnts.back()->type != TNodeType::IFBLOCK)
+		throw LogParserError(ERROR_EXPECT_PREV_IF_OR_ELIF_BLOCK, lexer_.get_line());
 
 	TNodeIf *prev_if = static_cast<TNodeIf *>(block->stmnts.back());
 	TNodeBlock *else_block = NULL;
 
 	while (prev_if->or_else != NULL) {
 		if (prev_if->type != TNodeType::IFBLOCK) {
-			std::cerr << "Error: to have a previous if or elif statement  "
-				"in line "
-				  << lexer_.get_line() << std::endl;
-			assert(0);
+			
 		}
 		prev_if = static_cast<TNodeIf *>(prev_if->or_else);
-		if (prev_if->type != TNodeType::IFBLOCK) {
-			std::cerr << "Error: to have a previous if or elif statement  "
-				"in line "
-				  << lexer_.get_line() << std::endl;
-			assert(0);
-		}
+		if (prev_if->type != TNodeType::IFBLOCK)
+			throw LogParserError(ERROR_EXPECT_PREV_IF_OR_ELIF_BLOCK, lexer_.get_line());
 	}
 
 	// Create a new code block because it is an else statement
@@ -663,34 +559,21 @@ void pyc::Parser::else_stmnt_(void)
 	curr_ident_.set_ident_level(curr_ident_.get_ident_level() + 1);
 	advance_();
 
-	if (not match_(Token::two_points)) {
-		std::cerr << "Error: expect to have an end of line of a statement "
-			"in line "
-			  << lexer_.get_line() << std::endl;
-		assert(0);
-	}
+	if (not match_(Token::two_points))
+		throw LogParserError(ERROR_EXPECT_COLON_FOR_CODE_BLOCK, lexer_.get_line());
 	
 	advance_();
 
-	if (not match_(Token::end_of_line)) {
-		std::cerr << "Error: expect to have an end of line of a statement "
-			"in line "
-			  << lexer_.get_line() << std::endl;
-		assert(0);
-	}
+	if (not match_(Token::end_of_line))
+		throw LogParserError(ERROR_EXPECT_END_OF_LINE, lexer_.get_line());
 
 	advance_();
 	
 	// We start parsing the block of code of the if statement
 	block_();
 	
-	if (not match_(Token::end_of_line) and not match_(curr_ident_)) {
-		std::cerr << "Error: expect to have an end of line of a statement or a new ident block"
-			"in line "
-			  << lexer_.get_line() << std::endl;
-		assert(0);
-		
-	}
+	if (not match_(Token::end_of_line) and not match_(curr_ident_))
+		throw LogParserError(ERROR_EXPECT_END_OF_LINE_OR_NEW_IDENT_BLOCK, lexer_.get_line());
 }
 
 
@@ -704,12 +587,8 @@ void pyc::Parser::while_stmnt_(void)
 	node->cond = cond_op_expr_();
 
 	// Sincie it is a new code block
-	if (!match_(Token::two_points)) {
-		std::cerr << "Error: expect to have an initialization of a code block ':' for a "
-			"while definition in line "
-			  << lexer_.get_line() << std::endl;
-		assert(0);
-	}
+	if (!match_(Token::two_points))
+		throw LogParserError(ERROR_EXPECT_COLON_FOR_CODE_BLOCK, lexer_.get_line());
 	
 	node->block = new TNodeBlock();
 	ast_.append_new_stmnt(node);
@@ -719,24 +598,16 @@ void pyc::Parser::while_stmnt_(void)
 	curr_ident_.set_ident_level(curr_ident_.get_ident_level() + 1);
 	advance_();
 
-	if (not match_(Token::end_of_line)) {
-		std::cerr << "Error: expect to have an end of line of a statement "
-			"in line "
-			  << lexer_.get_line() << std::endl;
-		assert(0);
-	}
+	if (not match_(Token::end_of_line))
+		throw LogParserError(ERROR_EXPECT_END_OF_LINE, lexer_.get_line());
 
 	advance_();
 
 	// We start parsing the block of code of the for statement
 	block_();
 
-	if (not match_(Token::end_of_line) and not match_(curr_ident_)) {
-		std::cerr << "Error: expect to have an end of line of a statement or a new ident block"
-			"in line "
-			  << lexer_.get_line() << std::endl;
-		assert(0);
-	}
+	if (not match_(Token::end_of_line) and not match_(curr_ident_))
+		throw LogParserError(ERROR_EXPECT_END_OF_LINE_OR_NEW_IDENT_BLOCK, lexer_.get_line());
 }
 
 void pyc::Parser::for_stmnt_(void)
@@ -750,24 +621,16 @@ void pyc::Parser::for_stmnt_(void)
 	advance_();
 
 	
-	if (curr_token_->get_tag() != TagType::ID) {
-		std::cerr << "Error: unexpect token for a 'for' definition "
-			"in line "
-			  << lexer_.get_line() << std::endl;
-		assert(0);
-	}
+	if (curr_token_->get_tag() != TagType::ID)
+		throw LogParserError(ERROR_EXPECT_ITERATOR_VAR, lexer_.get_line());
 
 	node->element = new TNodeTerm();
 	(static_cast<TNodeTerm *>(node->element))->token = curr_token_;
 	
 	advance_();
 
-	if (curr_token_->get_tag() != TagType::IN) {
-		std::cerr << "Error: unexpect token for a 'for' definition "
-			"in line "
-			  << lexer_.get_line() << std::endl;
-		assert(0);
-	}
+	if (curr_token_->get_tag() != TagType::IN)
+		throw LogParserError(ERROR_EXPECT_IN, lexer_.get_line());
 	
 	advance_();
 
@@ -781,12 +644,8 @@ void pyc::Parser::for_stmnt_(void)
 	}  else
 		node->iterate = func_call_(id_token); // Is a function call
 	
-	if (!match_(Token::two_points)) {
-		std::cerr << "Error: expect two points for a code block definition "
-			"in line "
-			  << lexer_.get_line() << std::endl;
-		assert(0);
-	}
+	if (not match_(Token::two_points))
+		throw LogParserError(ERROR_EXPECT_COLON_FOR_CODE_BLOCK, lexer_.get_line());
 
 	node->block = new TNodeBlock();
 	ast_.append_new_stmnt(node);
@@ -796,32 +655,24 @@ void pyc::Parser::for_stmnt_(void)
 	curr_ident_.set_ident_level(curr_ident_.get_ident_level() + 1);
 	advance_();
 	
-	if (not match_(Token::end_of_line)) {
-		std::cerr << "Error: expect to have an end of line of a statement "
-			"in line "
-			  << lexer_.get_line() << std::endl;
-		assert(0);
-	}
+	if (not match_(Token::end_of_line))
+		throw LogParserError(ERROR_EXPECT_END_OF_LINE, lexer_.get_line());
 
 	advance_();
 
 	// We start parsing the block of code of the if statement
 	block_();
 
-	if (not match_(Token::end_of_line) and not match_(curr_ident_)) {
-		std::cerr << "Error: expect to have an end of line of a statement or a new ident block"
-			"in line "
-			  << lexer_.get_line() << std::endl;
-		assert(0);
-	}
+	if (not match_(Token::end_of_line) and not match_(curr_ident_))
+		throw LogParserError(ERROR_EXPECT_END_OF_LINE_OR_NEW_IDENT_BLOCK, lexer_.get_line());
 }
 
 void pyc::Parser::stmnt_(void)
 {
 	// Can't be an unknow token at this stage
 	assert(curr_token_->get_type() != TokenType::UNKNOWN);
-
-	std::cout << "Next token statement to parse: " << *curr_token_ << std::endl;
+	
+	// std::cout << "Next token statement to parse: " << *curr_token_ << std::endl;
 
 	switch (curr_token_->get_type()) {
 	case TokenType::KEYWORD:
@@ -868,11 +719,8 @@ void pyc::Parser::stmnt_(void)
 				init_stmnt_(id_token);
 			} else if (match_(Token::lparen)) {
 				func_call_stmnt_(id_token);
-			} else {
-				std::cerr << "Error: expect to have function call or initialization of variable "
-					"in line "  << lexer_.get_line() << std::endl;
-				assert(0);
-			}
+			} else
+				throw LogParserError(ERROR_EXPECT_INIT_OR_CALL, lexer_.get_line());
 		}
 		break;
 	case TokenType::DELIMITER:
@@ -888,13 +736,8 @@ void pyc::Parser::stmnt_(void)
 void pyc::Parser::block_(void)
 {
 	if (!match_(curr_ident_)
-	    and static_cast<const Ident *>(curr_token_)->get_ident_level() == curr_ident_.get_ident_level()) {
-		std::cerr << "Error: identation don't match with the current  "
-			"block of code definition in line "
-			  << lexer_.get_line() << std::endl;
-		assert(0);
-		return;
-	}
+	    and static_cast<const Ident *>(curr_token_)->get_ident_level() == curr_ident_.get_ident_level())
+		throw LogParserError(ERROR_IDENT_NOT_MATCH, lexer_.get_line());
 	
 	while (lexer_.is_token_available()) {
 		if (curr_token_->get_tag() == TagType::IDENT) {
@@ -907,13 +750,8 @@ void pyc::Parser::block_(void)
 			}
 			advance_();
 		} else {
-			if (not match_(Token::end_of_line)) {
-				std::cerr << "Error: expect to have an end of line of a statement "
-					"in line "
-					  << lexer_.get_line() << std::endl;
-				assert(0);
-				return;
-			}
+			if (not match_(Token::end_of_line))
+				throw LogParserError(ERROR_EXPECT_END_OF_LINE, lexer_.get_line());
 			
 			ast_.pop_block();
 			curr_ident_.set_ident_level(curr_ident_.get_ident_level() - 1);
@@ -930,13 +768,9 @@ void pyc::Parser::block_(void)
 
 		// This is it, because in the case that the parsed stmnt was a block type, its parsing
 		// will be eneded in a identation shit
-		if (not match_(Token::end_of_line) and not match_(curr_ident_)) {
-			std::cerr << "Error: expect to have an end of line of a statement or a new ident block"
-				"in line "
-				  << lexer_.get_line() << std::endl;
-			assert(0);
-			return;
-		}
+		if (not match_(Token::end_of_line) and not match_(curr_ident_))
+			throw LogParserError(ERROR_EXPECT_END_OF_LINE_OR_NEW_IDENT_BLOCK, lexer_.get_line());
+
 		
 		if (match_(Token::end_of_line) and lexer_.is_token_available())
 			advance_();
@@ -945,7 +779,6 @@ void pyc::Parser::block_(void)
 
 void pyc::Parser::parse(void)
 {
-	// TODO: Refactor this shit
 	if (!lexer_.is_token_available())
 		assert(0 && "There isn't tokens to parse");
 	
@@ -964,12 +797,8 @@ void pyc::Parser::parse(void)
 
 		stmnt_();
 		
-		if (!match_(Token::end_of_line)) {
-			std::cerr << "Error: expect to have an end of line of a statement "
-				"in line "
-				  << lexer_.get_line() << std::endl;
-			assert(0);
-		}
+		if (not match_(Token::end_of_line))
+			throw LogParserError(ERROR_EXPECT_END_OF_LINE, lexer_.get_line());
 	}
 }
 

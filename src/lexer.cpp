@@ -3,7 +3,6 @@
 #include <fstream>
 #include <iostream>
 #include <map>
-#include <stdexcept>
 #include <string>
 
 #include "integer.hpp"
@@ -13,34 +12,15 @@
 #include "token.hpp"
 #include "word.hpp"
 #include "ident.hpp"
-
-// The errors messages
-#define ERROR_UNKNOW_TOKEN_MSG "Unknow token"
-#define ERROR_NO_NEXT_TOKEN "There isn't exist a next token"
-#define ERROR_IN_STREAM_NOT_OPENED "The in stream is not opened or can't opened"
-#define ERROR_UNTERMINATED_STRING_MUL_LIT "Unterminated multi-line string literal"
-#define ERROR_UNTERMINATED_STRING_LIT "Unterminated string literal"
+#include "error.hpp"
 
 using namespace pyc;
-
-// To hanlde runtime errors in the compiler
-class LexerError : public std::runtime_error {
-public:
-	// Constructor that takes a message and passes it to std::runtime_error
-	explicit LexerError(const std::string& message);
-};
-
-
-LexerError::LexerError(const std::string& message) : std::runtime_error("[LEXER ERROR]: " + message)
-{
-	
-}
 
 
 pyc::Lexer::Lexer(std::istream &source) : source_(source)
 {
 	if (!source_)
-		throw LexerError(ERROR_IN_STREAM_NOT_OPENED);
+		throw LogLexerError(ERROR_IN_STREAM_NOT_OPENED);
 	
 	// Reserve keywords
 
@@ -121,7 +101,7 @@ const Token &pyc::Lexer::next_token(void)
 	// Try to finds something otherwise throws an error
 	if (!reads_until_finds_something()) {
 		if (token_seq_.back()->get_tag() == TagType::ENDOFFILE)
-			throw LexerError(ERROR_NO_NEXT_TOKEN);
+			throw LogLexerError(ERROR_NO_NEXT_TOKEN);
 		token_seq_.push_back(&Token::end_of_file);
 		return *token_seq_.back();
 	}
@@ -142,7 +122,7 @@ const Token &pyc::Lexer::next_token(void)
 			return *token_seq_.back();
 		}
 		
-		throw LexerError(ERROR_UNKNOW_TOKEN_MSG);
+		throw LogLexerError(ERROR_UNKNOW_TOKEN_MSG);
 	case '>':
 		if (expectch('=')) {
 			token_seq_.push_back(&Word::ge);
@@ -246,7 +226,7 @@ const Token &pyc::Lexer::next_token(void)
 			}
 
       
-			throw LexerError(ERROR_UNTERMINATED_STRING_MUL_LIT);
+			throw LogLexerError(ERROR_UNTERMINATED_STRING_MUL_LIT);
 		}
 
 		// Handle single-line string literals
@@ -286,7 +266,7 @@ const Token &pyc::Lexer::next_token(void)
 			peek_ = '\0'; // Consume the closing quote
 		} else {
 			// Handle unterminated single-line string literal
-			throw LexerError(ERROR_UNTERMINATED_STRING_LIT);
+			throw LogLexerError(ERROR_UNTERMINATED_STRING_LIT);
 		}
 
 		return *token_seq_.back();
@@ -376,5 +356,5 @@ const Token &pyc::Lexer::next_token(void)
 	
 	// Uknow token
 	peek_ = '\0';
-	throw LexerError(ERROR_UNKNOW_TOKEN_MSG);
+	throw LogLexerError(ERROR_UNKNOW_TOKEN_MSG);
 }
