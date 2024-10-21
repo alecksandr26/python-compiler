@@ -736,7 +736,7 @@ void pyc::Parser::stmnt_(void)
 void pyc::Parser::block_(void)
 {
 	if (!match_(curr_ident_)
-	    and static_cast<const Ident *>(curr_token_)->get_ident_level() == curr_ident_.get_ident_level())
+	    and static_cast<const Ident *>(curr_token_)->get_ident_level() != curr_ident_.get_ident_level())
 		throw LogParserError(ERROR_IDENT_NOT_MATCH, lexer_.get_line());
 	
 	while (lexer_.is_token_available()) {
