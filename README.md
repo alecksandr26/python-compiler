@@ -20,3 +20,10 @@ This project is dedicated to building a fast and efficient Python compiler, desi
 ## Getting Started
 
 To use the compiler:
+
+
+## Depencies
+You need to install
+```
+sudo apt-get install qtbase5-dev
+```

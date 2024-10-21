@@ -44,10 +44,14 @@ namespace pyc {
 			ELIF,
 			WHILE,
 			FOR,
+			IN,
 			BREAK,
 			CONTINUE,
 			DEF,	// functions
-			IDENT,	// Python indentation ":"
+			PASS,
+			RETURN, 
+			IDENT,	// Level of identation
+			TWO_POINTS, // Python indentation two points ":"
 
 			// Delimiters
 			LBRACKET,  // [
@@ -55,7 +59,9 @@ namespace pyc {
 			LPAREN,    // (
 			RPAREN,    // )
 			COMMA,     // ,
-
+			EOL,	   // End Of Line
+			ENDOFFILE,	   // End Of File
+			
 			// -------------------------------
 			UNKNOWN,
 			TAG_COUNT  // Total number of tags

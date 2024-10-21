@@ -59,15 +59,15 @@ void pycgui::GUI::onButtonClick(void)
 	QString inputText = textArea1->toPlainText();
 
 	// Convert QString to std::string
-	std::string inputStdString = inputText.toStdString();
+	std::string input_std_string = inputText.toStdString();
 
 	// Use a std::istringstream to read from the string
-	std::istringstream source(inputStdString);
+	std::istringstream source(input_std_string);
 
 	pyc::Lexer lexer(source);
 
 	// Process tokens
-	std::stringstream outputStream;
+	std::stringstream output_stream;
 
 	try {
 		while (lexer.is_token_available()) {
@@ -78,29 +78,29 @@ void pycgui::GUI::onButtonClick(void)
 			case pyc::TokenType::KEYWORD:
 			case pyc::TokenType::STRING: {  // Case for strings
 				const pyc::Word &word = static_cast<const pyc::Word&>(token);
-				outputStream << word << std::endl;
+				output_stream << word << std::endl;
 				break;
 			}
 			case pyc::TokenType::NUMBER: {
 				if (token.get_tag() == pyc::TagType::INTEGER) {
 					const pyc::Integer &integer = static_cast<const pyc::Integer &>(token);
-					outputStream << integer << std::endl;
+					output_stream << integer << std::endl;
 				} else {
 					const pyc::Real &real = static_cast<const pyc::Real &>(token);
-					outputStream << real << std::endl;
+					output_stream << real << std::endl;
 				}
 				break;
 			}
 			default:
-				outputStream << token << std::endl;
+				output_stream << token << std::endl;
 				break;
 			}
 		}
 	} catch (const std::exception& e) {
-		outputStream << "Error while processing tokens: " << e.what() << std::endl;
+		output_stream << "Error while processing tokens: " << e.what() << std::endl;
 	}
 
 	// Display the output in textArea2
-	QString outputText = QString::fromStdString(outputStream.str());
+	QString outputText = QString::fromStdString(output_stream.str());
 	textArea2->setPlainText(outputText);
 }
