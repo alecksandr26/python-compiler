@@ -301,7 +301,7 @@ namespace pyc {
 		TNodeBlock *block;
 		
 		TNodeWhile(void) : TNode(TNodeType::WHILEBLOCK) {}
-
+		
 
 		friend std::ostream &operator<<(std::ostream &os, const TNodeWhile &while_block)
 		{
@@ -434,8 +434,9 @@ namespace pyc {
 		
 		// Pops back and move back to the previous code block
 		void pop_block(void);
-		
 		TNodeBlock *top_block(void);
+
+		TNodeBlock *get_program(void) const;
 
 		
 		// TODO: we need to have a global function kind of static function

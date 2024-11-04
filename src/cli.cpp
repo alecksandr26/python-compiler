@@ -4,6 +4,7 @@
 #include <cassert>
 #include <regex>
 
+#include "semantic.hpp"
 #include "parser.hpp"
 #include "lexer.hpp"
 #include "integer.hpp"
@@ -171,9 +172,17 @@ int main(int argc, char *argv[])
 	std::ifstream source(compiler_params.source_file);
 #if 1
 	pyc::Parser parser(source);
-
+	
 	parser.parse();
-	std::cout << parser.get_ast() << std::endl; 
+#if 0
+	std::cout << parser.get_ast() << std::endl;
+#else
+	pyc::Semantic semantic(parser.get_ast());
+	semantic.analyze();
+	
+	std::cout << semantic << std::endl;
+#endif
+	
 #else
 	test_lexer(source);
 #endif

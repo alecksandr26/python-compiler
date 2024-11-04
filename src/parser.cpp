@@ -473,7 +473,8 @@ void pyc::Parser::if_stmnt_(void)
 	block_();
 
 	if (not match_(Token::end_of_line) and not match_(curr_ident_))
-		throw LogParserError(ERROR_EXPECT_END_OF_LINE_OR_NEW_IDENT_BLOCK, lexer_.get_line());
+		if (curr_token_->get_tag() == TagType::IDENT)
+			throw LogParserError(ERROR_EXPECT_END_OF_LINE_OR_NEW_IDENT_BLOCK, lexer_.get_line());
 }
 
 void pyc::Parser::elif_stmnt_(void)
@@ -527,7 +528,8 @@ void pyc::Parser::elif_stmnt_(void)
 
 
 	if (not match_(Token::end_of_line) and not match_(curr_ident_))
-		throw LogParserError(ERROR_EXPECT_END_OF_LINE_OR_NEW_IDENT_BLOCK, lexer_.get_line());
+		if (curr_token_->get_tag() == TagType::IDENT)
+			throw LogParserError(ERROR_EXPECT_END_OF_LINE_OR_NEW_IDENT_BLOCK, lexer_.get_line());
 }
 
 void pyc::Parser::else_stmnt_(void)
@@ -573,7 +575,8 @@ void pyc::Parser::else_stmnt_(void)
 	block_();
 	
 	if (not match_(Token::end_of_line) and not match_(curr_ident_))
-		throw LogParserError(ERROR_EXPECT_END_OF_LINE_OR_NEW_IDENT_BLOCK, lexer_.get_line());
+		if (curr_token_->get_tag() == TagType::IDENT)
+			throw LogParserError(ERROR_EXPECT_END_OF_LINE_OR_NEW_IDENT_BLOCK, lexer_.get_line());
 }
 
 
@@ -607,7 +610,8 @@ void pyc::Parser::while_stmnt_(void)
 	block_();
 
 	if (not match_(Token::end_of_line) and not match_(curr_ident_))
-		throw LogParserError(ERROR_EXPECT_END_OF_LINE_OR_NEW_IDENT_BLOCK, lexer_.get_line());
+		if (curr_token_->get_tag() == TagType::IDENT)
+			throw LogParserError(ERROR_EXPECT_END_OF_LINE_OR_NEW_IDENT_BLOCK, lexer_.get_line());
 }
 
 void pyc::Parser::for_stmnt_(void)
@@ -664,7 +668,8 @@ void pyc::Parser::for_stmnt_(void)
 	block_();
 
 	if (not match_(Token::end_of_line) and not match_(curr_ident_))
-		throw LogParserError(ERROR_EXPECT_END_OF_LINE_OR_NEW_IDENT_BLOCK, lexer_.get_line());
+		if (curr_token_->get_tag() == TagType::IDENT)
+			throw LogParserError(ERROR_EXPECT_END_OF_LINE_OR_NEW_IDENT_BLOCK, lexer_.get_line());
 }
 
 void pyc::Parser::stmnt_(void)
@@ -750,8 +755,8 @@ void pyc::Parser::block_(void)
 			}
 			advance_();
 		} else {
-			if (not match_(Token::end_of_line))
-				throw LogParserError(ERROR_EXPECT_END_OF_LINE, lexer_.get_line());
+			// if (not match_(Token::end_of_line))
+			// 	throw LogParserError(ERROR_EXPECT_END_OF_LINE, lexer_.get_line());
 			
 			ast_.pop_block();
 			curr_ident_.set_ident_level(curr_ident_.get_ident_level() - 1);
@@ -781,12 +786,6 @@ void pyc::Parser::parse(void)
 {
 	if (!lexer_.is_token_available())
 		assert(0 && "There isn't tokens to parse");
-	
-	// Read the first tokenu
-	// advance_();
-	
-	// Init the parser
-	// parse_();
 
 
 	while (lexer_.is_token_available()) {
@@ -797,8 +796,8 @@ void pyc::Parser::parse(void)
 
 		stmnt_();
 		
-		if (not match_(Token::end_of_line))
-			throw LogParserError(ERROR_EXPECT_END_OF_LINE, lexer_.get_line());
+		// if (not match_(Token::end_of_line) and lexer_.is_token_available())
+		// 	throw LogParserError(ERROR_EXPECT_END_OF_LINE, lexer_.get_line());
 	}
 }
 

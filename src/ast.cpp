@@ -132,3 +132,9 @@ std::stringstream pyc::ast_fetch_stream_node(TNode *node)
 	return ssout;
 }
 
+
+TNodeBlock *pyc::AST::get_program(void) const
+{
+	return program_;
+}
+

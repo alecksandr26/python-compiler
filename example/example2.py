@@ -8,8 +8,10 @@ if 1 == 1:
 
         
     else:
+        num = 2
         if num == 2:
             print("num is two")
+        name = "hello"
         print("Hello there", name)
         var = True and True == True
     print("Pedrito")
