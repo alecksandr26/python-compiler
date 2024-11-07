@@ -1,10 +1,14 @@
 # Define the project as the parent project's name
 project(${CMAKE_PROJECT_NAME})
 
-# Add The pyc library with the specified source files
 add_library(pyc
   STATIC lexer.cpp tag.cpp token.cpp word.cpp integer.cpp real.cpp ident.cpp parser.cpp ast.cpp error.cpp
   semantic.cpp
+)
+
+# Link Qt5 Core to pyc to resolve QObject dependency
+target_link_libraries(pyc
+  PUBLIC Qt5::Core
 )
 
 # Set the include directories for the library

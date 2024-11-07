@@ -14,6 +14,8 @@
 #include "integer.hpp"
 #include "real.hpp"
 #include "lexer.hpp"
+#include "parser.hpp"
+#include "semantic.hpp"
 
 pycgui::GUI::GUI(QWidget *parent)
 	: QMainWindow(parent)
@@ -96,6 +98,20 @@ void pycgui::GUI::onButtonClick(void)
 				break;
 			}
 		}
+		// Reset the stream for parsing
+		source.clear();
+		source.seekg(0);
+
+		pyc::Parser parser(source);
+	
+		parser.parse();
+
+		output_stream << parser.get_ast();
+
+		pyc::Semantic semantic(parser.get_ast());
+		semantic.analyze();
+
+		output_stream << semantic;
 	} catch (const std::exception& e) {
 		output_stream << "Error while processing tokens: " << e.what() << std::endl;
 	}
