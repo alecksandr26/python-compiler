@@ -24,9 +24,13 @@ namespace pycgui {
 		void onButtonClick(void); // Slot for handling button click
 	
 	private:
-		QTextEdit *textArea1; // Input area
-		QTextEdit *textArea2; // Output area
-		QPushButton *button;
+		QTextEdit *input_text_area; // Input area
+		QTextEdit *lexer_output_text_area; // Lexer Output area
+		QTextEdit *parser_output_text_area; // Parser Output area
+		QTextEdit *semantic_output_text_area; // Semantic Output area
+		QTextEdit *log_output_text_area; // General log error output text area
+		
+		QPushButton *submit_button;
 	};
 }
 

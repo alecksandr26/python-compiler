@@ -34,7 +34,6 @@ namespace pyc {
 	public:
 		Semantic(const AST &ast);
 
-
 		friend std::ostream &operator<<(std::ostream &os, const Semantic &semantic)
 		{
 
@@ -51,9 +50,5 @@ namespace pyc {
 	};
 }
 
-
-
 #endif
-
-
 
