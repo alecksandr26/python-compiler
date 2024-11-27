@@ -43,6 +43,10 @@ pycgui::GUI::GUI(QWidget *parent)
 	semantic_output_text_area = new QTextEdit(this);
 	semantic_output_text_area->setPlaceholderText("Semantic output will appear here...");
 	semantic_output_text_area->setReadOnly(true);
+	
+	asm_output_text_area = new QTextEdit(this);
+	asm_output_text_area->setPlaceholderText("asm output will appear here...");
+	asm_output_text_area->setReadOnly(true);
 
 	log_output_text_area = new QTextEdit(this);
 	log_output_text_area->setPlaceholderText("Log output will appear here...");
@@ -54,7 +58,8 @@ pycgui::GUI::GUI(QWidget *parent)
 	// Add the widgets to the grid layout
 	gridLayout->addWidget(lexer_output_text_area, 0, 0); // First column, first row
 	gridLayout->addWidget(semantic_output_text_area, 1, 0); // First column, second row
-	gridLayout->addWidget(parser_output_text_area, 0, 1, 2, 1); // Second column, spans two rows
+	gridLayout->addWidget(parser_output_text_area, 0, 1, 1, 1); // Second column, first row
+	gridLayout->addWidget(asm_output_text_area, 1, 1); // Second column, second row
 
 	// Add other widgets to the main layout
 	mainLayout->addWidget(input_text_area);
