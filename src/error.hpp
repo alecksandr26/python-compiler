@@ -29,6 +29,8 @@
 #define ERROR_UNKNOW_TERM "unknow term"
 #define ERROR_IDENT_NOT_MATCH "identation don't math"
 
+#define ERROR_VARIABLE_NOT_DEFINED "variable definition not found"
+#define ERROR_FUNCTION_NOT_DEFINED "function definition not found"
 
 // To hanlde runtime errors in the compiler
 namespace pyc {
@@ -41,6 +43,13 @@ namespace pyc {
 	class LogParserError : public std::runtime_error {
 	public:
 		explicit LogParserError(const std::string &message, int line);
+	};
+	
+	class LogSemanticError: public std::runtime_error {
+	public:
+		// TODO: Fix this error it must to support a line number
+		// explicit LogSemanticError(const std::string &message, int line);
+		explicit LogSemanticError(const std::string &message);
 	};
 }
 

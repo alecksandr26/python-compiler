@@ -2,6 +2,7 @@
 #include <vector>
 #include <algorithm> // For std::find
 
+#include "error.hpp"
 #include "semantic.hpp"
 
 using namespace pyc;
@@ -29,14 +30,13 @@ pyc::Semantic::Semantic(const AST &ast) : ast_(ast)
 	};
 }
 
-
 void pyc::Semantic::analyze(void)
 {
 	TNodeBlock *program = ast_.get_program();
 	
 	assert(program != NULL && "Can't be null, should't be a empty program");
 
-	// Sincie a program is an entire block of code it will analyze
+	// Since a program is an entire block of code it will analyze a block
 	analyze_block(program);
 }
 
@@ -54,12 +54,15 @@ void pyc::Semantic::analyze_expr(TNode *expr, TNodeBlock *block)
 			if (term->token->get_type() == TokenType::IDENTIFIER) {
 				const Word *word = static_cast<const Word *>(term->token);
 
-				// If the symbol does't exist or if the code block is not equal
+				// If the symbol does't exist or if it is not find it in the actual scope stacks
+				// then it means that it is outside of the scope or it doens't exist
+				// that definition
 				if (sym_table_.count(word->get_lexeme()) == 0
 				    or std::find(scopes_.begin(), scopes_.end(),
 						 sym_table_[word->get_lexeme()].block) == scopes_.end()) {
-					std::cerr << "Definition not found: " << *word << std::endl;
-					assert(0);
+					std::string msg = std::string(ERROR_VARIABLE_NOT_DEFINED) + " for "
+						+ word->get_lexeme();
+					throw LogSemanticError(msg);
 				}
 			}
 		}
@@ -74,8 +77,9 @@ void pyc::Semantic::analyze_expr(TNode *expr, TNodeBlock *block)
 			if (sym_table_.count(word->get_lexeme()) == 0
 			    or std::find(scopes_.begin(), scopes_.end(),
 					 sym_table_[word->get_lexeme()].block) == scopes_.end()) {
-				std::cerr << "Definition not found: " << *word << std::endl;
-				assert(0);
+				std::string msg = std::string(ERROR_FUNCTION_NOT_DEFINED) + " for "
+						+ word->get_lexeme();
+				throw LogSemanticError(msg);
 			}
 
 			// Iterate the expressions or arguments
@@ -127,8 +131,9 @@ void pyc::Semantic::analyze_stmnt(TNode *stmnt, TNodeBlock *block)
 
 			if (sym_table_.count(word->get_lexeme()) == 0
 			    or std::find(scopes_.begin(), scopes_.end(), block) == scopes_.end()) {
-				std::cerr << "Definition not found: " << *word << std::endl;
-				assert(0);
+				std::string msg = std::string(ERROR_FUNCTION_NOT_DEFINED) + " for "
+						+ word->get_lexeme();
+				throw LogSemanticError(msg);
 			}
 
 			// Iterate the expressions or arguments
@@ -214,8 +219,6 @@ void pyc::Semantic::analyze_stmnt(TNode *stmnt, TNodeBlock *block)
 	}
 }
 
-
-
 void pyc::Semantic::analyze_block(TNodeBlock *block)
 {
 	assert(block != NULL && block->type == TNodeType::BLOCK && "Can't null");
@@ -227,6 +230,4 @@ void pyc::Semantic::analyze_block(TNodeBlock *block)
 
 	scopes_.pop_back();
 }
-
-
 
