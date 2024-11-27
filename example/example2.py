@@ -5,8 +5,6 @@ if 1 == 1:
         print("hiihiihi")
     elif False:
         print("hello there")
-
-        
     else:
         num = 2
         if num == 2:
