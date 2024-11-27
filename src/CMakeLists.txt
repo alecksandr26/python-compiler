@@ -1,66 +1,63 @@
-# Define the project as the parent project's name
 project(${CMAKE_PROJECT_NAME})
 
+# Define the main compiler library
 add_library(pyc
   STATIC lexer.cpp tag.cpp token.cpp word.cpp integer.cpp real.cpp ident.cpp parser.cpp ast.cpp error.cpp
-  semantic.cpp
+  semantic.cpp codegen.cpp
 )
 
-# Link Qt5 Core to pyc to resolve QObject dependency
-target_link_libraries(pyc
-  PUBLIC Qt5::Core
-)
-
-# Set the include directories for the library
-target_include_directories(pyc
-  PUBLIC ${CMAKE_CURRENT_LIST_DIR}
-)
-
-# Here we define the gui librarie, that will contain the compiler but also the gui libraries
-add_library(pycgui
-  STATIC gui.cpp
-)
-
-# Here link the compiler
-target_link_libraries(pycgui
-  PRIVATE pyc Qt5::Widgets Qt5::Core
-)
-
-target_include_directories(pycgui
-  PRIVATE ${Qt5Widgets_INCLUDE_DIRS}
-)
-
-set_target_properties(pycgui PROPERTIES AUTOMOC ON)
-
-# Adding the cli binary executable
+# Add the CLI binary executable
 add_executable(cli.out
   cli.cpp
 )
 
-target_link_libraries(cli.out
-  PRIVATE pyc
+# Link LLVM and Qt to the `pyc` library
+target_link_libraries(pyc
+  PUBLIC Qt5::Core
+  PRIVATE ${LLVM_LIBRARIES}
 )
 
-# Adding the gui binary executable
+# Link LLVM and `pyc` to the CLI binary
+target_link_libraries(cli.out
+  PRIVATE pyc ${LLVM_LIBRARIES}
+)
 
-# **Find Qt5 components**
-find_package(Qt5 COMPONENTS Widgets Core REQUIRED)
+# Set include directories for the `pyc` library
+target_include_directories(pyc
+  PUBLIC ${CMAKE_CURRENT_LIST_DIR}
+)
 
+# Define the GUI library
+add_library(pycgui
+  STATIC gui.cpp
+)
 
-# **Enable Qt-specific features**
-set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTORCC ON)
-set(CMAKE_AUTOUIC ON)
+# Link the GUI library with the `pyc` library and Qt5
+target_link_libraries(pycgui
+  PRIVATE pyc Qt5::Widgets Qt5::Core
+)
 
+# Set include directories for the GUI library
+target_include_directories(pycgui
+  PRIVATE ${Qt5Widgets_INCLUDE_DIRS}
+)
+
+# Enable Qt5 specific features for the GUI library
+set_target_properties(pycgui PROPERTIES AUTOMOC ON)
+
+# Add the GUI binary executable
 add_executable(app.out
   app.cpp
 )
 
+# Link the GUI binary with the GUI library and Qt5
 target_link_libraries(app.out
   PRIVATE pycgui Qt5::Widgets Qt5::Core)
 
+# Set include directories for the GUI binary
 target_include_directories(app.out
   PRIVATE ${SRC_DIR} ${Qt5Widgets_INCLUDE_DIRS})
 
+# Enable Qt5 specific features for the GUI binary
 set_target_properties(app.out
   PROPERTIES AUTOMOC ON)

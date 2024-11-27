@@ -7,7 +7,9 @@ pyc::Integer::Integer(const long &value, const Token &token)
 }
 
 
-
+long pyc::Integer::get_value() const {
+    return value_; // Return the stored integer value
+}
 
 
 

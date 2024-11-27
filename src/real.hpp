@@ -9,6 +9,7 @@ namespace pyc {
 		double value_;
 	public:
 		Real(const double &value, const Token &token);
+		double get_value() const; // Add this method
 
 		
 		friend std::ostream &operator<<(std::ostream &os, const Real &real)

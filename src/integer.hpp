@@ -13,6 +13,7 @@ namespace pyc {
 		
 	public:
 		Integer(const long &value, const Token &token);
+		long get_value() const; 
 		
 		friend std::ostream &operator<<(std::ostream &os, const Integer &integer)
 		{
