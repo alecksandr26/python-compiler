@@ -199,3 +199,29 @@ void CodeGen::saveToFile(const std::string &filename) {
     module_.print(file, nullptr);
     std::cerr << "[DEBUG] LLVM IR written successfully.\n";
 }
+
+
+void CodeGen::saveToFile(const std::string &filename, std::stringstream &output_stream_parser) {
+    // Save LLVM IR to file
+    std::error_code ec;
+    llvm::raw_fd_ostream file(filename, ec, llvm::sys::fs::OF_None);
+    if (ec) {
+        std::cerr << "[ERROR] Error opening file: " << ec.message() << "\n";
+        return;
+    }
+
+    // Use an intermediate string to pass to raw_string_ostream
+    std::string asmOutput;
+    llvm::raw_string_ostream string_stream(asmOutput);
+
+    // Write LLVM IR to both the file and the stringstream
+    module_.print(file, nullptr);
+    module_.print(string_stream, nullptr);
+
+    // Flush the raw_string_ostream and copy the content to the output stream
+    string_stream.flush();
+    output_stream_parser << asmOutput;
+
+    std::cerr << "[DEBUG] LLVM IR written successfully to file and stream.\n";
+}
+

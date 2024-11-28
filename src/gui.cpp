@@ -16,6 +16,7 @@
 #include "lexer.hpp"
 #include "parser.hpp"
 #include "semantic.hpp"
+#include "codegen.hpp"
 
 pycgui::GUI::GUI(QWidget *parent)
 	: QMainWindow(parent)
@@ -98,6 +99,7 @@ void pycgui::GUI::onButtonClick(void)
 	std::stringstream output_stream_tokens;
 	std::stringstream output_stream_parser;
 	std::stringstream output_stream_semantic;
+	std::stringstream output_stream_asm;
 	std::stringstream output_stream_log;
 
 	try {
@@ -141,6 +143,13 @@ void pycgui::GUI::onButtonClick(void)
 		semantic.analyze();
 
 		output_stream_semantic << semantic;
+
+		pyc::CodeGen codegen("PythonCompiler");
+
+		codegen.generateCode(parser.get_ast());
+
+		codegen.saveToFile("python_code_gui.ll", output_stream_asm);
+
 	} catch (const std::exception& e) {
 		output_stream_log << "[ERROR-LOG]: " << e.what() << std::endl;
 	}
@@ -149,10 +158,12 @@ void pycgui::GUI::onButtonClick(void)
 	QString outputTokenText = QString::fromStdString(output_stream_tokens.str());
 	QString outputParserText = QString::fromStdString(output_stream_parser.str());
 	QString outputSemanticText = QString::fromStdString(output_stream_semantic.str());
+	QString outputAsmText = QString::fromStdString(output_stream_asm.str());
 	QString outputLogText = QString::fromStdString(output_stream_log.str());
 	
 	lexer_output_text_area->setPlainText(outputTokenText);
 	parser_output_text_area->setPlainText(outputParserText);
 	semantic_output_text_area->setPlainText(outputSemanticText);
+	asm_output_text_area->setPlainText(outputAsmText);
 	log_output_text_area->setPlainText(outputLogText);
 }

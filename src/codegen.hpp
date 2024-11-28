@@ -8,6 +8,7 @@
 #include <llvm/IR/Function.h>
 #include <map>
 #include <string>
+#include <sstream> 
 
 #include "ast.hpp"
 
@@ -28,6 +29,7 @@ namespace pyc {
         CodeGen(const std::string &moduleName);
         void generateCode(const AST &ast);
         void saveToFile(const std::string &filename);
+        void saveToFile(const std::string &filename, std::stringstream &output_stream_parser);
     };
 }
 
