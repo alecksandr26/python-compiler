@@ -3,6 +3,7 @@
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/raw_ostream.h>
 #include <iostream>
+#include <fstream>
 #include <cassert>
 
 using namespace pyc;
@@ -201,6 +202,7 @@ void CodeGen::saveToFile(const std::string &filename) {
 }
 
 
+
 void CodeGen::saveToFile(const std::string &filename, std::stringstream &output_stream_parser) {
     // Save LLVM IR to file
     std::error_code ec;
@@ -216,12 +218,39 @@ void CodeGen::saveToFile(const std::string &filename, std::stringstream &output_
 
     // Write LLVM IR to both the file and the stringstream
     module_.print(file, nullptr);
-    module_.print(string_stream, nullptr);
 
     // Flush the raw_string_ostream and copy the content to the output stream
     string_stream.flush();
     output_stream_parser << asmOutput;
 
     std::cerr << "[DEBUG] LLVM IR written successfully to file and stream.\n";
+
+    // Convert LLVM IR to assembly using llc
+    std::string asmFile = filename + ".s"; // Output assembly file
+    std::string llcCommand = "llc -filetype=asm " + filename + " -o " + asmFile;
+
+    std::cerr << "[DEBUG] Running command: " << llcCommand << "\n";
+
+    if (std::system(llcCommand.c_str()) != 0) {
+        std::cerr << "[ERROR] Failed to run llc command.\n";
+        return;
+    }
+
+    // Read the generated assembly file
+    std::ifstream asmStream(asmFile);
+    if (!asmStream.is_open()) {
+        std::cerr << "[ERROR] Failed to open generated assembly file: " << asmFile << "\n";
+        return;
+    }
+
+    // Append the assembly content to the output stream
+    std::string line;
+    while (std::getline(asmStream, line)) {
+        output_stream_parser << line << "\n";
+    }
+
+    asmStream.close();
+
+    std::cerr << "[DEBUG] Assembly content appended to the output stream.\n";
 }
 
