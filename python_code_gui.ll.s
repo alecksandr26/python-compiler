@@ -8,10 +8,24 @@ main:                                   # @main
 # %bb.0:                                # %entry
 	subq	$24, %rsp
 	.cfi_def_cfa_offset 32
-	movl	$5, 20(%rsp)
-	movl	$10, 16(%rsp)
-	movl	$15, 12(%rsp)
-	movl	$15, %edi
+	movl	$2, 4(%rsp)
+	movl	$8, (%rsp)
+	movl	$10, 20(%rsp)
+	movl	$10, %edi
+	callq	print@PLT
+	movl	4(%rsp), %edi
+	imull	(%rsp), %edi
+	movl	%edi, 16(%rsp)
+	callq	print@PLT
+	movl	(%rsp), %eax
+	cltd
+	idivl	4(%rsp)
+	movl	%eax, 12(%rsp)
+	movl	%eax, %edi
+	callq	print@PLT
+	movl	(%rsp), %edi
+	subl	4(%rsp), %edi
+	movl	%edi, 8(%rsp)
 	callq	print@PLT
 	addq	$24, %rsp
 	.cfi_def_cfa_offset 8

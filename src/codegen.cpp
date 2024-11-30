@@ -5,6 +5,8 @@
 #include <iostream>
 #include <fstream>
 #include <cassert>
+#include <cstdio> 
+#include <stdexcept> 
 
 using namespace pyc;
 
@@ -202,8 +204,32 @@ void CodeGen::saveToFile(const std::string &filename) {
 }
 
 
+void runBinaryAndCaptureOutput(std::stringstream &output_stream_log_parser) {
+    const std::string command = "./example_binary";
+    std::cerr << "[DEBUG] Running command: " << command << "\n";
 
-void CodeGen::saveToFile(const std::string &filename, std::stringstream &output_stream_parser) {
+    // Open a pipe to the command using popen
+    FILE *pipe = popen(command.c_str(), "r");
+    if (!pipe) {
+        std::cerr << "[ERROR] Failed to open pipe for command: " << command << "\n";
+        throw std::runtime_error("Failed to open pipe");
+    }
+
+    // Read the output of the command line by line
+    char buffer[128];
+    while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+        output_stream_log_parser << buffer; // Append each line to the stringstream
+    }
+
+    // Close the pipe and check the command's return status
+    int return_status = pclose(pipe);
+
+    std::cerr << "[DEBUG] Command output captured successfully.\n";
+}
+
+
+
+void CodeGen::saveToFile(const std::string &filename, std::stringstream &output_stream_parser, std::stringstream &output_stream_log_parser) {
     // Save LLVM IR to file
     std::error_code ec;
     llvm::raw_fd_ostream file(filename, ec, llvm::sys::fs::OF_None);
@@ -225,17 +251,27 @@ void CodeGen::saveToFile(const std::string &filename, std::stringstream &output_
 
     std::cerr << "[DEBUG] LLVM IR written successfully to file and stream.\n";
 
-    // Convert LLVM IR to assembly using llc
     std::string asmFile = filename + ".s"; // Output assembly file
-    std::string llcCommand = "llc -filetype=asm " + filename + " -o " + asmFile;
 
-    std::cerr << "[DEBUG] Running command: " << llcCommand << "\n";
+    std::string commands [] = {"llc -filetype=asm " + filename + " -o " + asmFile, 
+                            "clang -c print.c -o print.o", 
+                            "llc -filetype=obj " + filename + " -o example.o", 
+                            "clang example.o print.o -o example_binary"
+                            };
 
-    if (std::system(llcCommand.c_str()) != 0) {
-        std::cerr << "[ERROR] Failed to run llc command.\n";
-        return;
+    int size = sizeof(commands) / sizeof(commands[0]);
+
+    for (int i = 0; i < size; i++) {
+         std::cerr << "[DEBUG] Running command: " << commands[i] << "\n";
+         if (std::system(commands[i].c_str()) != 0) {
+            std::cerr << "[ERROR] Failed to run llc command.\n";
+            return;
+        }
     }
 
+    std::cerr << "[DEBUG] Running command: ./example_binary " << "\n";
+    runBinaryAndCaptureOutput(output_stream_log_parser);
+    
     // Read the generated assembly file
     std::ifstream asmStream(asmFile);
     if (!asmStream.is_open()) {

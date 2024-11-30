@@ -148,7 +148,7 @@ void pycgui::GUI::onButtonClick(void)
 
 		codegen.generateCode(parser.get_ast());
 
-		codegen.saveToFile("python_code_gui.ll", output_stream_asm);
+		codegen.saveToFile("python_code_gui.ll", output_stream_asm, output_stream_log);
 
 	} catch (const std::exception& e) {
 		output_stream_log << "[ERROR-LOG]: " << e.what() << std::endl;
